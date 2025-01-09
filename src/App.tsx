@@ -1,12 +1,34 @@
-import { BrowserRouter, Route, Routes } from "react-router";
+import {
+  type NavigateOptions,
+  Route,
+  Routes,
+  useHref,
+  useNavigate,
+} from "react-router";
+import { RouterProvider } from "react-aria-components";
 import Home from "./routes";
+import Layout from "./routes/layout";
+import DatastorePage from "./routes/datastores";
+
+import "./App.css";
+
+declare module "react-aria-components" {
+  interface RouterConfig {
+    routerOptions: NavigateOptions;
+  }
+}
 
 export default function App() {
+  let navigate = useNavigate();
+
   return (
-    <BrowserRouter>
+    <RouterProvider navigate={navigate} useHref={useHref}>
       <Routes>
-        <Route path="/" element={<Home />} />
+        <Route path="/" element={<Layout />}>
+          <Route index element={<Home />} />
+          <Route path="/universes/:universe_id/datastores/:datastore_id" element={<DatastorePage />} />
+        </Route>
       </Routes>
-    </BrowserRouter>
+    </RouterProvider>
   );
 }
