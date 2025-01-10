@@ -19,7 +19,7 @@ import {
   TextField,
 } from "react-aria-components";
 import { useParams } from "react-router";
-import useSWR from "swr";
+import useSWR, { useSWRConfig } from "swr";
 
 type JsonMap = { [key: string]: JsonValue };
 
@@ -78,8 +78,8 @@ async function get_data_entries(
   datastore_id: string,
   page: number
 ) {
-  await invoke("list_data_store_entries", { universe_id, datastore_id, page });
-  const entries = await invoke("get_data_store_entries", {
+  await invoke("list_datastore_entries", { universe_id, datastore_id, page });
+  const entries = await invoke("get_datastore_entries", {
     universe_id,
     datastore_id,
     page,
@@ -138,7 +138,11 @@ export default function DatastorePage() {
         {
           header: "Edit",
           cell: (info: CellContext<DatastoreEntry, unknown>) => (
-            <EditModal entry={info.row.original} />
+            <EditModal
+              universe_id={parseInt(params.universe_id!)}
+              datastore_id={params.datastore_id!}
+              entry={info.row.original}
+            />
           ),
         },
       ]);
@@ -237,11 +241,14 @@ export default function DatastorePage() {
 }
 
 interface EditModalProps {
+  universe_id: number;
+  datastore_id: string;
   entry: DatastoreEntry;
 }
 
-function EditModal({ entry }: EditModalProps) {
+function EditModal({ universe_id, datastore_id, entry }: EditModalProps) {
   const [isOpen, setOpen] = useState(false);
+  const { mutate } = useSWRConfig();
 
   async function onSubmit(formData: FormData) {
     const value = Object.fromEntries(
@@ -249,14 +256,17 @@ function EditModal({ entry }: EditModalProps) {
         .filter((e) => e[0].startsWith("value:"))
         .map(([k, v]) => {
           const key = k.split(":")[1];
-          return [key, v];
+          return [key, JSON.parse(v.toString())];
         })
     );
     await invoke("update_datastore_entry", {
+      entry_id: entry.id,
       value: JSON.stringify(value),
       attributes: entry.attributes,
       users: entry.users,
     });
+    setOpen(false);
+    mutate(`universes/${universe_id}/datastores/${datastore_id}`);
   }
 
   return (

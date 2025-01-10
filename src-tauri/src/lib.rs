@@ -1,12 +1,13 @@
 mod models;
 
 use models::StoredUniverse;
-use rowifi_roblox::RobloxClient;
+use rowifi_roblox::{RobloxClient, UpdateDatastoreEntryArgs};
 use rowifi_roblox_models::{
-    datastore::{Datastore, PartialDatastoreEntry},
-    id::UniverseId,
+    datastore::{Datastore, DatastoreEntry},
+    id::{UniverseId, UserId},
 };
 use serde::Serialize;
+use serde_json::Value;
 use std::collections::HashMap;
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_store::StoreExt;
@@ -20,15 +21,16 @@ pub struct InitInfo {
 pub struct Universes(Vec<UniverseId>);
 
 #[derive(Clone)]
-pub struct PaginatedResponse<T> {
-    pub data: Vec<T>,
+pub struct PageEntries {
+    pub entries: Vec<String>,
     pub next_page_token: Option<String>,
 }
 
 pub struct DatastoreCache {
     pub universe_id: UniverseId,
     pub datastore_id: String,
-    pub entries: HashMap<u32, PaginatedResponse<PartialDatastoreEntry>>,
+    pub page_entries: HashMap<u32, PageEntries>,
+    pub entries: HashMap<String, DatastoreEntry>
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -60,12 +62,12 @@ async fn get_universes(
 }
 
 #[tauri::command(rename_all = "snake_case")]
-async fn list_data_stores(
+async fn list_datastores(
     roblox: State<'_, RobloxClient>,
     universe_id: UniverseId,
 ) -> Result<Vec<Datastore>, String> {
     let datastores = roblox
-        .list_data_stores(universe_id)
+        .list_datastores(universe_id)
         .await
         .map_err(|err| err.to_string())?;
 
@@ -73,31 +75,31 @@ async fn list_data_stores(
 }
 
 #[tauri::command(rename_all = "snake_case")]
-async fn list_data_store_entries(
+async fn list_datastore_entries(
     roblox: State<'_, RobloxClient>,
     cache: State<'_, Mutex<DatastoreCache>>,
     universe_id: UniverseId,
     datastore_id: String,
     page: u32,
-) -> Result<Vec<PartialDatastoreEntry>, String> {
-    log::trace!("list_data_store_entries");
+) -> Result<Vec<String>, String> {
+    log::trace!("list_datastore_entries");
     let mut cache = cache.lock().await;
 
     if cache.universe_id != universe_id {
         cache.universe_id = universe_id;
-        cache.entries.clear();
+        cache.page_entries.clear();
     }
     if cache.datastore_id != datastore_id {
         cache.datastore_id = datastore_id.clone();
-        cache.entries.clear();
+        cache.page_entries.clear();
     }
 
-    if let Some(entries) = cache.entries.get(&page) {
-        return Ok(entries.data.clone());
+    if let Some(entries) = cache.page_entries.get(&page) {
+        return Ok(entries.entries.clone());
     }
 
     let page_token = cache
-        .entries
+        .page_entries
         .get(&(page - 1))
         .map(|data| data.next_page_token.clone())
         .flatten()
@@ -105,7 +107,12 @@ async fn list_data_store_entries(
     log::trace!("{}", page_token);
 
     let entries = match roblox
-        .list_data_store_entries(universe_id, &datastore_id, &urlencoding::encode(&page_token), 25)
+        .list_datastore_entries(
+            universe_id,
+            &datastore_id,
+            &urlencoding::encode(&page_token),
+            25,
+        )
         .await
     {
         Ok(e) => e,
@@ -116,35 +123,37 @@ async fn list_data_store_entries(
     };
     log::trace!("{:?}", entries);
 
-    cache.entries.insert(
+    let page_entries = PageEntries {
+        entries: entries.data.into_iter().map(|e| e.id).collect(),
+        next_page_token: entries.next_page_token,
+    };
+    cache.page_entries.insert(
         page,
-        PaginatedResponse {
-            data: entries.data.clone(),
-            next_page_token: entries.next_page_token,
-        },
+        page_entries.clone()
     );
 
-    Ok(entries.data)
+    Ok(page_entries.entries)
 }
 
 #[tauri::command(rename_all = "snake_case")]
-async fn get_data_store_entries(
+async fn get_datastore_entries(
     roblox: State<'_, RobloxClient>,
     cache: State<'_, Mutex<DatastoreCache>>,
     universe_id: UniverseId,
     datastore_id: String,
     page: u32,
-) -> Result<Vec<PartialDatastoreEntry>, String> {
-    log::trace!("get_data_store_entries");
+) -> Result<Vec<DatastoreEntry>, String> {
+    log::trace!("get_datastore_entries");
     let mut res = Vec::new();
     let mut cache = cache.lock().await;
-    if let Some(entries) = cache.entries.get_mut(&page) {
-        for cached_entry in &mut entries.data {
-            if cached_entry.value.is_some() {
+    let mut entries_to_add = Vec::new();
+    if let Some(entries) = cache.page_entries.get(&page) {
+        for entry in &entries.entries {
+            if let Some(cached_entry) = cache.entries.get(entry) {
                 res.push(cached_entry.clone());
             } else {
                 let entry = match roblox
-                    .get_data_store_entry(universe_id, &datastore_id, &cached_entry.id, None)
+                    .get_datastore_entry(universe_id, &datastore_id, &entry, None)
                     .await
                 {
                     Ok(entry) => entry,
@@ -154,21 +163,53 @@ async fn get_data_store_entries(
                     }
                 };
 
-                cached_entry.attributes = Some(entry.attributes);
-                cached_entry.create_time = Some(entry.create_time);
-                cached_entry.etag = Some(entry.etag);
-                cached_entry.revision_create_time = Some(entry.revision_create_time);
-                cached_entry.revision_id = Some(entry.revision_id);
-                cached_entry.state = Some(entry.state);
-                cached_entry.users = Some(entry.users);
-                cached_entry.value = Some(entry.value);
-
-                res.push(cached_entry.clone());
+                entries_to_add.push(entry.clone());
+                res.push(entry);
             }
         }
     }
+    if let Some(entries) = cache.page_entries.get_mut(&page) {
+        entries.entries.extend(entries_to_add.iter().map(|e| e.id.clone()));
+    }
+    for entry in entries_to_add {
+        cache.entries.insert(entry.id.clone(), entry);
+    }
 
     Ok(res)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+async fn update_datastore_entry(
+    roblox: State<'_, RobloxClient>,
+    cache: State<'_, Mutex<DatastoreCache>>,
+    entry_id: String,
+    value: Value,
+    users: Vec<UserId>,
+    attributes: Option<Value>,
+) -> Result<(), String> {
+    log::trace!("update_datastore_entry");
+
+    let value = serde_json::from_str::<Value>(&value.as_str().unwrap()).unwrap();
+    let mut cache = cache.lock().await;
+    let new_entry = roblox
+        .update_datastore_entry(
+            cache.universe_id,
+            &cache.datastore_id,
+            &entry_id,
+            UpdateDatastoreEntryArgs {
+                value,
+                users,
+                attributes,
+            },
+        )
+        .await
+        .map_err(|err| err.to_string())?;
+    
+    if let Some(cached_entry) = cache.entries.get_mut(&entry_id) {
+        *cached_entry = new_entry.clone();
+    }
+
+    Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -180,9 +221,10 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_universes,
             get_init_info,
-            list_data_stores,
-            list_data_store_entries,
-            get_data_store_entries
+            list_datastores,
+            list_datastore_entries,
+            get_datastore_entries,
+            update_datastore_entry
         ])
         .setup(|app| {
             let store = app.store("store.json")?;
@@ -202,6 +244,7 @@ pub fn run() {
             app.manage(Mutex::new(DatastoreCache {
                 universe_id: UniverseId(0),
                 datastore_id: "".into(),
+                page_entries: HashMap::new(),
                 entries: HashMap::new(),
             }));
 

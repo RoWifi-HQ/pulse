@@ -71,7 +71,7 @@ function Sidebar() {
 }
 
 async function list_datastores(id: number) {
-  const res = await invoke("list_data_stores", { universe_id: id });
+  const res = await invoke("list_datastores", { universe_id: id });
   return res as Datastore[];
 }
 
