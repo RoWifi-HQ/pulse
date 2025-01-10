@@ -1,14 +1,22 @@
+import {
+  CellContext,
+  ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
 import { invoke } from "@tauri-apps/api/core";
 import { useLayoutEffect, useState } from "react";
 import {
-  Cell,
-  Column,
-  ColumnResizer,
-  ResizableTableContainer,
-  Row,
-  Table,
-  TableBody,
-  TableHeader,
+  Button,
+  Dialog,
+  DialogTrigger,
+  Heading,
+  Label,
+  Modal,
+  ModalOverlay,
+  TextArea,
+  TextField,
 } from "react-aria-components";
 import { useParams } from "react-router";
 import useSWR from "swr";
@@ -82,7 +90,7 @@ async function get_data_entries(
 export default function DatastorePage() {
   const params = useParams();
   const [page, setPage] = useState(1);
-  const [columns, setColumns] = useState([{ id: "Id", isRowHeader: true }]);
+  const [columns, setColumns] = useState<ColumnDef<DatastoreEntry>[]>([]);
 
   const { data: entries } = useSWR(
     `universes/${params.universe_id!}/datastores/${params.datastore_id!}`,
@@ -107,65 +115,216 @@ export default function DatastorePage() {
         }
       }
       setColumns([
-        { id: "Id", isRowHeader: true },
-        ...Array.from(columnsToAdd.values()).map((c) => {
-          return { id: c, isRowHeader: false };
+        {
+          header: "Id",
+          accessorFn: (row) => row.id,
+          cell: (info) => info.getValue(),
+        },
+        ...Array.from(columnsToAdd).map((c) => {
+          return {
+            id: c,
+            header: () => c,
+            cell: (info: CellContext<DatastoreEntry, unknown>) => (
+              <code
+                className="max-h-36 block text-ellipsis overflow-hidden text-sm"
+                style={{ width: info.cell.column.getSize() }}
+              >
+                {JSON.stringify(info.getValue())}
+              </code>
+            ),
+            accessorFn: (row: any) => row.value[c],
+          };
         }),
-        { id: "Edit", isRowHeader: false },
+        {
+          header: "Edit",
+          cell: (info: CellContext<DatastoreEntry, unknown>) => (
+            <EditModal entry={info.row.original} />
+          ),
+        },
       ]);
     }
   }, [entries]);
-  console.log(columns);
+
+  const table = useReactTable({
+    columns,
+    data: entries ?? [],
+    getCoreRowModel: getCoreRowModel(),
+    columnResizeMode: "onEnd",
+    defaultColumn: {
+      size: 200,
+      minSize: 50,
+      maxSize: 500,
+    },
+  });
 
   return (
     <div className="w-full h-full overflow-auto scrollbar">
-      <Table aria-label="Datastore Entries Table" className="max-w-screen-lg">
-        <TableHeader columns={columns}>
-          {(column) => (
-            <Column
-              key={column.id}
-              isRowHeader={column.isRowHeader}
-              maxWidth={`25%`}
-            >
-              <div className="flex text-center px-3">
-                {column.id}
-                {/* <ColumnResizer className="w-1 bg-neutral-200 ml-auto cursor-ew-resize" /> */}
-              </div>
-            </Column>
-          )}
-        </TableHeader>
-        <TableBody items={entries ?? []} dependencies={[columns]}>
-          {(item) => {
-            if (isJsonMap(item.value)) {
-              const value = item.value as JsonMap;
-              return (
-                <Row key={item.id} columns={columns} className="text-sm">
-                  {(column) => {
-                    if (column.id === "Id") {
-                      return <Cell key={column.id}>{item.id}</Cell>;
-                    } else if (column.id === "Edit") {
-                      return (
-                        <button className="rounded-xl hover:bg-neutral-700 h-8 w-8 p-2">
-                          Edit
-                        </button>
-                      );
-                    }
-                    return (
-                      <Cell key={column.id} className="py-3 px-6">
-                        <code className="max-h-36 block text-ellipsis overflow-hidden">
-                          {JSON.stringify(value[column.id])}
-                        </code>
-                      </Cell>
-                    );
+      <table
+        {...{
+          style: {
+            width: table.getCenterTotalSize(),
+          },
+        }}
+      >
+        <thead>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <tr key={headerGroup.id}>
+              {headerGroup.headers.map((header) => (
+                <th
+                  className="relative"
+                  key={header.id}
+                  {...{
+                    colSpan: header.colSpan,
+                    style: {
+                      width: header.getSize(),
+                    },
                   }}
-                </Row>
-              );
-            } else {
-              return <Row></Row>;
-            }
-          }}
-        </TableBody>
-      </Table>
+                >
+                  {header.isPlaceholder
+                    ? null
+                    : flexRender(
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )}
+                  <div
+                    className={`absolute top-0 h-full w-[5px] cursor-ew-resize bg-neutral-200 right-0 opacity-0 hover:opacity-100 ${
+                      table.options.columnResizeDirection
+                    } ${
+                      header.column.getIsResizing()
+                        ? "bg-neutral-700 opacity-100"
+                        : ""
+                    }`}
+                    {...{
+                      onDoubleClick: () => header.column.resetSize(),
+                      onMouseDown: header.getResizeHandler(),
+                      onTouchStart: header.getResizeHandler(),
+                      style: {
+                        transform: header.column.getIsResizing()
+                          ? `translateX(${
+                              table.getState().columnSizingInfo.deltaOffset ?? 0
+                            }px)`
+                          : "",
+                      },
+                    }}
+                  />
+                </th>
+              ))}
+            </tr>
+          ))}
+        </thead>
+        <tbody>
+          {table.getRowModel().rows.map((row) => (
+            <tr key={row.id}>
+              {row.getVisibleCells().map((cell) => (
+                <td
+                  className="py-3 px-6"
+                  key={cell.id}
+                  {...{
+                    style: {
+                      width: cell.column.getSize(),
+                    },
+                  }}
+                >
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
+  );
+}
+
+interface EditModalProps {
+  entry: DatastoreEntry;
+}
+
+function EditModal({ entry }: EditModalProps) {
+  const [isOpen, setOpen] = useState(false);
+
+  async function onSubmit(formData: FormData) {
+    const value = Object.fromEntries(
+      Array.from(formData.entries())
+        .filter((e) => e[0].startsWith("value:"))
+        .map(([k, v]) => {
+          const key = k.split(":")[1];
+          return [key, v];
+        })
+    );
+    await invoke("update_datastore_entry", {
+      value: JSON.stringify(value),
+      attributes: entry.attributes,
+      users: entry.users,
+    });
+  }
+
+  return (
+    <DialogTrigger>
+      <Button className="rounded-xl hover:bg-neutral-700 h-8 w-8 p-2">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          strokeWidth={1.5}
+          stroke="currentColor"
+          className="w-full h-full"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"
+          />
+        </svg>
+      </Button>
+      <ModalOverlay className="fixed top-0 left-0 w-screen h-screen bg-black/50 flex items-center justify-center z-50">
+        <Modal
+          isOpen={isOpen}
+          onOpenChange={setOpen}
+          className="max-w-screen-lg max-h-[75%] overflow-y-auto scrollbar bg-neutral-800 outline-none p-8 rounded-md"
+        >
+          <Dialog className="outline-none flex flex-col items-center">
+            <Heading slot="title" className="font-bold text-2xl">
+              Edit Entry
+            </Heading>
+            <form
+              action={onSubmit}
+              className="outline-none grid grid-cols-3 gap-x-6 gap-y-8 items-center mt-12 w-full"
+            >
+              <Label className="font-semibold">Id</Label>
+              <span className="col-span-2">{entry.id}</span>
+              {isJsonMap(entry.value) &&
+                Object.entries(entry.value).map(([k, v]) => (
+                  <>
+                    <Label className="font-semibold">{k}</Label>
+                    <TextField
+                      name={`value:${k}`}
+                      className="col-span-2 min-w-64"
+                      defaultValue={JSON.stringify(v)}
+                    >
+                      <TextArea className="h-48 w-96 bg-neutral-900 overflow-y-auto scrollbar text-sm p-4 rounded-md" />
+                    </TextField>
+                  </>
+                ))}
+              <div className="col-span-3 flex w-full justify-evenly">
+                <Button
+                  type="button"
+                  onPress={() => setOpen(false)}
+                  className="px-3 py-2 hover:bg-neutral-700 rounded-md"
+                >
+                  Close
+                </Button>
+                <Button
+                  type="submit"
+                  className="px-3 py-2 bg-blue-600 hover:bg-blue-800 rounded-lg"
+                >
+                  Submit
+                </Button>
+              </div>
+            </form>
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
+    </DialogTrigger>
   );
 }
