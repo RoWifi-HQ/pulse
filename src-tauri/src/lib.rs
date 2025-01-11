@@ -18,7 +18,7 @@ pub struct InitInfo {
     pub token: bool,
 }
 
-pub struct Universes(Vec<UniverseId>);
+pub struct Universes(Mutex<Vec<UniverseId>>);
 
 #[derive(Clone)]
 pub struct PageEntries {
@@ -42,12 +42,34 @@ fn get_init_info(app: AppHandle) -> Result<InitInfo, String> {
 }
 
 #[tauri::command(rename_all = "snake_case")]
+fn set_token(app: AppHandle, token: String) -> Result<(), String> {
+    let store = app.store("store.json").map_err(|err| err.to_string())?;
+    store.set("roblox_token", token);
+    store.save().map_err(|err| err.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command(rename_all = "snake_case")]
+async fn add_universe(app: AppHandle, universe_ids: State<'_, Universes>, universe: UniverseId) -> Result<(), String> {
+    let store = app.store("store.json").map_err(|err| err.to_string())?;
+    let mut universes = universe_ids.inner().0.lock().await;
+    universes.push(universe);
+
+    store.set("universes", serde_json::to_value(universes.clone()).unwrap());
+    store.save().map_err(|err| err.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command(rename_all = "snake_case")]
 async fn get_universes(
     roblox: State<'_, RobloxClient>,
     universe_ids: State<'_, Universes>,
 ) -> Result<Vec<StoredUniverse>, String> {
     let mut universes = Vec::new();
-    for universe_id in &universe_ids.0 {
+    let universe_ids = universe_ids.inner().0.lock().await;
+    for universe_id in universe_ids.iter() {
         let universe = roblox
             .get_universe(*universe_id)
             .await
@@ -218,7 +240,9 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_log::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
+            set_token,
             get_universes,
+            add_universe,
             get_init_info,
             list_datastores,
             get_datastore_entries,
@@ -238,7 +262,7 @@ pub fn run() {
                 .transpose()
                 .map_err(|err| err.to_string())?
                 .unwrap_or_default();
-            app.manage(Universes(universes));
+            app.manage(Universes(Mutex::new(universes)));
 
             app.manage(Mutex::new(DatastoreCache {
                 universe_id: UniverseId(0),
