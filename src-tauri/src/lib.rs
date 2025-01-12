@@ -1,5 +1,7 @@
+mod error;
 mod models;
 
+use error::Error;
 use models::StoredUniverse;
 use rowifi_roblox::{RobloxClient, UpdateDatastoreEntryArgs};
 use rowifi_roblox_models::{
@@ -51,12 +53,19 @@ fn set_token(app: AppHandle, token: String) -> Result<(), String> {
 }
 
 #[tauri::command(rename_all = "snake_case")]
-async fn add_universe(app: AppHandle, universe_ids: State<'_, Universes>, universe: UniverseId) -> Result<(), String> {
+async fn add_universe(
+    app: AppHandle,
+    universe_ids: State<'_, Universes>,
+    universe: UniverseId,
+) -> Result<(), String> {
     let store = app.store("store.json").map_err(|err| err.to_string())?;
     let mut universes = universe_ids.inner().0.lock().await;
     universes.push(universe);
 
-    store.set("universes", serde_json::to_value(universes.clone()).unwrap());
+    store.set(
+        "universes",
+        serde_json::to_value(universes.clone()).unwrap(),
+    );
     store.save().map_err(|err| err.to_string())?;
 
     Ok(())
@@ -66,14 +75,11 @@ async fn add_universe(app: AppHandle, universe_ids: State<'_, Universes>, univer
 async fn get_universes(
     roblox: State<'_, RobloxClient>,
     universe_ids: State<'_, Universes>,
-) -> Result<Vec<StoredUniverse>, String> {
+) -> Result<Vec<StoredUniverse>, Error> {
     let mut universes = Vec::new();
     let universe_ids = universe_ids.inner().0.lock().await;
     for universe_id in universe_ids.iter() {
-        let universe = roblox
-            .get_universe(*universe_id)
-            .await
-            .map_err(|err| err.to_string())?;
+        let universe = roblox.get_universe(*universe_id).await?;
         universes.push(StoredUniverse {
             id: *universe_id,
             name: universe.display_name,
@@ -87,11 +93,8 @@ async fn get_universes(
 async fn list_datastores(
     roblox: State<'_, RobloxClient>,
     universe_id: UniverseId,
-) -> Result<Vec<Datastore>, String> {
-    let datastores = roblox
-        .list_datastores(universe_id)
-        .await
-        .map_err(|err| err.to_string())?;
+) -> Result<Vec<Datastore>, Error> {
+    let datastores = roblox.list_datastores(universe_id).await?;
 
     Ok(datastores.data)
 }
@@ -103,7 +106,7 @@ async fn get_datastore_entries(
     universe_id: UniverseId,
     datastore_id: String,
     page: u32,
-) -> Result<Vec<DatastoreEntry>, String> {
+) -> Result<Vec<DatastoreEntry>, Error> {
     log::trace!("get_datastore_entries");
     let mut res = Vec::new();
     let mut cache = cache.lock().await;
@@ -141,8 +144,8 @@ async fn get_datastore_entries(
         {
             Ok(e) => e,
             Err(err) => {
-                log::warn!("{:?}", err);
-                return Err(err.to_string());
+                log::error!("{:?}", err);
+                return Err(err.into());
             }
         };
 
@@ -167,7 +170,7 @@ async fn get_datastore_entries(
                 Ok(entry) => entry,
                 Err(err) => {
                     log::warn!("{:?}", err);
-                    return Err(err.to_string());
+                    return Err(err.into());
                 }
             };
 
@@ -187,10 +190,10 @@ async fn update_datastore_entry(
     value: Value,
     users: Vec<UserId>,
     attributes: Option<Value>,
-) -> Result<(), String> {
+) -> Result<(), Error> {
     log::trace!("update_datastore_entry");
 
-    let value = serde_json::from_str::<Value>(&value.as_str().unwrap()).unwrap();
+    let value: Value = serde_json::from_str::<Value>(&value.as_str().unwrap()).unwrap();
     let mut cache = cache.lock().await;
     let new_entry = roblox
         .update_datastore_entry(
@@ -203,8 +206,7 @@ async fn update_datastore_entry(
                 attributes,
             },
         )
-        .await
-        .map_err(|err| err.to_string())?;
+        .await?;
 
     if let Some(cached_entry) = cache.entries.get_mut(&entry_id) {
         *cached_entry = new_entry.clone();
@@ -219,12 +221,11 @@ async fn delete_datastore_entry(
     cache: State<'_, Mutex<DatastoreCache>>,
     page: u32,
     entry_id: String,
-) -> Result<(), String> {
+) -> Result<(), Error> {
     let mut cache = cache.lock().await;
     roblox
         .delete_datastore_entry(cache.universe_id, &cache.datastore_id, &entry_id)
-        .await
-        .map_err(|err| err.to_string())?;
+        .await?;
     if let Some(page_entries) = cache.page_entries.get_mut(&page) {
         page_entries.entries.retain(|e| *e != entry_id);
     }

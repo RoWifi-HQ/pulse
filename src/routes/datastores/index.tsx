@@ -18,72 +18,32 @@ import {
   TextArea,
   TextField,
 } from "react-aria-components";
-import { Link, useParams } from "react-router";
+import { useParams } from "react-router";
 import useSWR, { useSWRConfig } from "swr";
-
-type JsonMap = { [key: string]: JsonValue };
-
-type JsonValue = string | number | boolean | null | JsonValue[] | JsonMap;
-
-function isJsonValue(value: unknown): value is JsonValue {
-  if (
-    typeof value === "string" ||
-    typeof value === "number" ||
-    typeof value === "boolean" ||
-    value === null
-  ) {
-    return true;
-  }
-
-  if (Array.isArray(value)) {
-    return value.every(isJsonValue);
-  }
-
-  if (typeof value === "object" && value !== null) {
-    return Object.values(value).every(isJsonValue);
-  }
-
-  return false;
-}
-
-function isJsonMap(value: unknown): value is JsonMap {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    !Array.isArray(value) &&
-    Object.values(value).every(isJsonValue)
-  );
-}
-
-enum DatastoreEntryState {
-  Unspecified = "STATE_UNSPECIFIED",
-  Active = "ACTIVE",
-  Deleted = "DELETED",
-}
-
-type DatastoreEntry = {
-  createTime: string;
-  revisionId: string;
-  revisionCreateTime: string;
-  state: DatastoreEntryState;
-  etag: string;
-  value: JsonValue;
-  id: string;
-  users: string[];
-  attributes: any;
-};
+import { isJsonMap, isTauriError } from "../../utils";
+import {
+  type DatastoreEntry,
+  type TauriError,
+  type JsonMap,
+  ErrorKind,
+} from "../../types";
+import { toast_queue } from "../../toast";
 
 async function get_data_entries(
   universe_id: number,
   datastore_id: string,
   page: number
 ) {
-  const entries = await invoke("get_datastore_entries", {
-    universe_id,
-    datastore_id,
-    page,
-  });
-  return entries as DatastoreEntry[];
+  try {
+    const entries = await invoke("get_datastore_entries", {
+      universe_id,
+      datastore_id,
+      page,
+    });
+    return entries as DatastoreEntry[];
+  } catch (error) {
+    return error as TauriError;
+  }
 }
 
 const fallbackEntries: never[] = [];
@@ -106,7 +66,7 @@ export default function DatastorePage() {
   );
 
   const columns: ColumnDef<DatastoreEntry>[] = useMemo(() => {
-    if (entries) {
+    if (entries && !isTauriError(entries)) {
       const columnsToAdd = new Set<string>();
       for (const entry of entries) {
         if (isJsonMap(entry.value)) {
@@ -164,7 +124,7 @@ export default function DatastorePage() {
 
   const table = useReactTable({
     columns,
-    data: entries ?? fallbackEntries,
+    data: isTauriError(entries) ? fallbackEntries : entries ?? fallbackEntries,
     getCoreRowModel: getCoreRowModel(),
     columnResizeMode: "onEnd",
     defaultColumn: {
@@ -172,27 +132,39 @@ export default function DatastorePage() {
       minSize: 50,
       maxSize: 500,
     },
-    debugAll: true,
   });
 
+  if (isTauriError(entries)) {
+    switch (entries.kind) {
+      case ErrorKind.Forbidden:
+        return (
+          <div className="h-full w-full flex flex-col text-center">
+            Oh No! The token does not have access to this datastore.
+          </div>
+        );
+      case ErrorKind.NotFound:
+        return (
+          <div className="h-full w-full flex flex-col text-center">
+            Oh No! The datastore does not seem to exist.
+          </div>
+        );
+      case ErrorKind.RobloxServer:
+        return (
+          <div className="h-full w-full flex flex-col text-center">
+            Oh No! Something went wrong.
+          </div>
+        );
+      default:
+        return (
+          <div className="h-full w-full flex flex-col text-center">
+            Oh No! Something went wrong.
+          </div>
+        );
+    }
+  }
+
   return (
-    <div className="h-full w-full flex flex-col">
-      <div className="p-4">
-        <div className="flex items-center gap-x-1 text-neutral-300 text-sm">
-          <Link to="/" className="hover:text-neutral-500">
-            Universes
-          </Link>
-          <span>{">"}</span>
-          <span>{params.universe_id}</span>
-          <span>{">"}</span>
-          <Link
-            to={`/universes/${params.universe_id}/datastores/${params.datastore_id}`}
-            className="hover:text-neutral-500"
-          >
-            {params.datastore_id}
-          </Link>
-        </div>
-      </div>
+    <>
       <div className="w-full h-full overflow-auto scrollbar">
         <table
           {...{
@@ -289,7 +261,7 @@ export default function DatastorePage() {
           </button>
         </nav>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -313,14 +285,34 @@ function EditModal({ universe_id, datastore_id, entry, page }: EditModalProps) {
           return [key, JSON.parse(v.toString())];
         })
     );
-    await invoke("update_datastore_entry", {
-      entry_id: entry.id,
-      value: JSON.stringify(value),
-      attributes: entry.attributes,
-      users: entry.users,
-    });
-    setOpen(false);
-    mutate(`universes/${universe_id}/datastores/${datastore_id}/page/${page}`);
+    try {
+      await invoke("update_datastore_entry", {
+        entry_id: entry.id,
+        value: JSON.stringify(value),
+        attributes: entry.attributes,
+        users: entry.users,
+      });
+      setOpen(false);
+      mutate(
+        `universes/${universe_id}/datastores/${datastore_id}/page/${page}`
+      );
+      toast_queue.add(
+        { success: true, description: "Entry Modified" },
+        { timeout: 5000 }
+      );
+    } catch (error) {
+      const err = error as TauriError;
+      let description = "";
+      if (err.kind == ErrorKind.Forbidden)
+        description = "The token does not have permissions to update entries.";
+      else if (err.kind == ErrorKind.NotFound)
+        description = "The entry was not found. The data may be outdated.";
+      else description = "Something went wrong.";
+      toast_queue.add(
+        { success: false, description: description },
+        { timeout: 5000 }
+      );
+    }
   }
 
   return (
@@ -406,12 +398,26 @@ function DeleteModal({
   const { mutate } = useSWRConfig();
 
   async function onSubmit() {
-    await invoke("delete_datastore_entry", {
-      page,
-      entry_id: entry.id,
-    });
-    setOpen(false);
-    mutate(`universes/${universe_id}/datastores/${datastore_id}/page/${page}`);
+    try {
+      await invoke("delete_datastore_entry", {
+        page,
+        entry_id: entry.id,
+      });
+      setOpen(false);
+      mutate(`universes/${universe_id}/datastores/${datastore_id}/page/${page}`);
+    } catch (error) {
+      const err = error as TauriError;
+      let description = "";
+      if (err.kind == ErrorKind.Forbidden)
+        description = "The token does not have permissions to delete entries.";
+      else if (err.kind == ErrorKind.NotFound)
+        description = "The entry was not found. The data may be outdated.";
+      else description = "Something went wrong.";
+      toast_queue.add(
+        { success: false, description: description },
+        { timeout: 5000 }
+      );
+    }
   }
 
   return (

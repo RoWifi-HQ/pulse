@@ -26,6 +26,7 @@ tauri-plugin-store = "2"
 tokio = { version = "1", features = ["sync"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+serde_repr = "0"
 rowifi_roblox_models = { branch = "feature/datastores", git = "https://github.com/RoWifi-HQ/RoWifi-V4" }
 rowifi_roblox = { branch = "feature/datastores", git = "https://github.com/RoWifi-HQ/RoWifi-V4" }
 urlencoding = "2"

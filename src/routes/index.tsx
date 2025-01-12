@@ -15,18 +15,10 @@ import {
 } from "react-aria-components";
 import { Link } from "react-router";
 import useSWR, { useSWRConfig } from "swr";
+import type { StoredUniverse, Datastore } from "../types";
 
 type InitInfo = {
   token: boolean;
-};
-
-type StoredUniverse = {
-  id: number;
-  name: string;
-};
-
-type Datastore = {
-  id: string;
 };
 
 async function getInitInfo() {

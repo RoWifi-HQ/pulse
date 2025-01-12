@@ -9,6 +9,8 @@ import { RouterProvider } from "react-aria-components";
 import Home from "./routes";
 import Layout from "./routes/layout";
 import DatastorePage from "./routes/datastores";
+import DatastoreLayout from "./routes/datastores/layout";
+import { GlobalToastRegion } from "./toast";
 
 import "./App.css";
 
@@ -22,13 +24,21 @@ export default function App() {
   let navigate = useNavigate();
 
   return (
-    <RouterProvider navigate={navigate} useHref={useHref}>
-      <Routes>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<Home />} />
-          <Route path="/universes/:universe_id/datastores/:datastore_id" element={<DatastorePage />} />
-        </Route>
-      </Routes>
-    </RouterProvider>
+    <>
+      <RouterProvider navigate={navigate} useHref={useHref}>
+        <Routes>
+          <Route path="/" element={<Layout />}>
+            <Route index element={<Home />} />
+            <Route
+              path="/universes/:universe_id/datastores/:datastore_id"
+              element={<DatastoreLayout />}
+            >
+              <Route index element={<DatastorePage />} />
+            </Route>
+          </Route>
+        </Routes>
+      </RouterProvider>
+      <GlobalToastRegion />
+    </>
   );
 }

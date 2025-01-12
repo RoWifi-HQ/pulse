@@ -3062,6 +3062,7 @@ dependencies = [
  "rowifi_roblox_models",
  "serde",
  "serde_json",
+ "serde_repr",
  "tauri",
  "tauri-build",
  "tauri-plugin-log",
@@ -3325,7 +3326,7 @@ dependencies = [
 [[package]]
 name = "rowifi_roblox"
 version = "4.2.0"
-source = "git+https://github.com/RoWifi-HQ/RoWifi-V4?branch=feature%2Fdatastores#8751c9190f0375fb214ce947c85742057aabeb07"
+source = "git+https://github.com/RoWifi-HQ/RoWifi-V4?branch=feature%2Fdatastores#c5040cb5cb22396715193d736c1888fcfb1aa0d4"
 dependencies = [
  "http-body-util",
  "hyper",
@@ -3342,7 +3343,7 @@ dependencies = [
 [[package]]
 name = "rowifi_roblox_models"
 version = "4.2.0"
-source = "git+https://github.com/RoWifi-HQ/RoWifi-V4?branch=feature%2Fdatastores#8751c9190f0375fb214ce947c85742057aabeb07"
+source = "git+https://github.com/RoWifi-HQ/RoWifi-V4?branch=feature%2Fdatastores#c5040cb5cb22396715193d736c1888fcfb1aa0d4"
 dependencies = [
  "bytes",
  "chrono",
