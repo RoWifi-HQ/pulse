@@ -18,7 +18,7 @@ import {
   TextArea,
   TextField,
 } from "react-aria-components";
-import { useParams } from "react-router";
+import { Link, useParams } from "react-router";
 import useSWR, { useSWRConfig } from "swr";
 
 type JsonMap = { [key: string]: JsonValue };
@@ -177,6 +177,22 @@ export default function DatastorePage() {
 
   return (
     <div className="h-full w-full flex flex-col">
+      <div className="p-4">
+        <div className="flex items-center gap-x-1 text-neutral-300 text-sm">
+          <Link to="/" className="hover:text-neutral-500">
+            Universes
+          </Link>
+          <span>{">"}</span>
+          <span>{params.universe_id}</span>
+          <span>{">"}</span>
+          <Link
+            to={`/universes/${params.universe_id}/datastores/${params.datastore_id}`}
+            className="hover:text-neutral-500"
+          >
+            {params.datastore_id}
+          </Link>
+        </div>
+      </div>
       <div className="w-full h-full overflow-auto scrollbar">
         <table
           {...{
@@ -326,9 +342,7 @@ function EditModal({ universe_id, datastore_id, entry, page }: EditModalProps) {
         </svg>
       </Button>
       <ModalOverlay className="fixed top-0 left-0 w-screen h-screen bg-black/50 flex items-center justify-center z-50">
-        <Modal
-          className="max-w-screen-lg max-h-[75%] overflow-y-auto scrollbar bg-neutral-800 outline-none p-8 rounded-md"
-        >
+        <Modal className="max-w-screen-lg max-h-[75%] overflow-y-auto scrollbar bg-neutral-800 outline-none p-8 rounded-md">
           <Dialog className="outline-none flex flex-col items-center">
             <Heading slot="title" className="font-bold text-2xl">
               Edit Entry
@@ -428,10 +442,7 @@ function DeleteModal({
             <Heading slot="title" className="font-bold text-2xl">
               Are you sure you want to delete this entry?
             </Heading>
-            <form
-              action={onSubmit}
-              className="outline-none mt-12 w-full"
-            >
+            <form action={onSubmit} className="outline-none mt-12 w-full">
               <div className="flex w-full justify-evenly">
                 <Button
                   type="button"
