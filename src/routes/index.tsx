@@ -14,7 +14,7 @@ import {
   TextField,
 } from "react-aria-components";
 import { Link } from "react-router";
-import useSWR, { useSWRConfig } from "swr";
+import useSWR, { mutate, useSWRConfig } from "swr";
 import type { StoredUniverse, Datastore } from "../types";
 
 type InitInfo = {
@@ -56,6 +56,7 @@ function TokenSection({ token }: { token?: boolean }) {
       token: new_token,
     });
     setFormOpen(false);
+    mutate("init");
   }
 
   return (
@@ -124,7 +125,7 @@ function TokenSection({ token }: { token?: boolean }) {
 }
 
 function UniverseSection() {
-  const { data: universes } = useSWR("universes", () => getUniverses());
+  const { data: universes } = useSWR("universes", () => getUniverses(), { revalidateOnFocus: false });
 
   return (
     <section className="flex flex-col items-center mt-12 gap-y-6">
@@ -182,7 +183,7 @@ function AddUniverse() {
       universe: new_universe,
     });
     setOpen(false);
-    mutate(`universes`);
+    mutate("universes");
   }
 
   return (

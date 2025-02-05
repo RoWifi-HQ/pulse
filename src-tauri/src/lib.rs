@@ -46,8 +46,10 @@ fn get_init_info(app: AppHandle) -> Result<InitInfo, String> {
 #[tauri::command(rename_all = "snake_case")]
 fn set_token(app: AppHandle, token: String) -> Result<(), String> {
     let store = app.store("store.json").map_err(|err| err.to_string())?;
-    store.set("roblox_token", token);
+    store.set("roblox_token", token.clone());
     store.save().map_err(|err| err.to_string())?;
+
+    app.manage(RobloxClient::new(&token, None));
 
     Ok(())
 }
@@ -58,6 +60,7 @@ async fn add_universe(
     universe_ids: State<'_, Universes>,
     universe: UniverseId,
 ) -> Result<(), String> {
+    log::trace!("add_universe");
     let store = app.store("store.json").map_err(|err| err.to_string())?;
     let mut universes = universe_ids.inner().0.lock().await;
     universes.push(universe);
@@ -67,6 +70,7 @@ async fn add_universe(
         serde_json::to_value(universes.clone()).unwrap(),
     );
     store.save().map_err(|err| err.to_string())?;
+    log::debug!("new universes: {:?}", universes);
 
     Ok(())
 }
@@ -76,15 +80,24 @@ async fn get_universes(
     roblox: State<'_, RobloxClient>,
     universe_ids: State<'_, Universes>,
 ) -> Result<Vec<StoredUniverse>, Error> {
+    log::trace!("get_universes");
     let mut universes = Vec::new();
     let universe_ids = universe_ids.inner().0.lock().await;
+    log::debug!("universe ids: {:?}", universe_ids);
     for universe_id in universe_ids.iter() {
-        let universe = roblox.get_universe(*universe_id).await?;
+        let universe = match roblox.get_universe(*universe_id).await {
+            Ok(u) => u,
+            Err(err) => {
+                log::error!("{err:?}");
+                continue;
+            }
+        };
         universes.push(StoredUniverse {
             id: *universe_id,
             name: universe.display_name,
         });
     }
+    log::debug!("universes: {:?}", universes);
 
     Ok(universes)
 }
@@ -253,9 +266,10 @@ pub fn run() {
         .setup(|app| {
             let store = app.store("store.json")?;
 
-            let token = store.get("roblox_token").unwrap_or_default();
-            let token = token.as_str().unwrap_or_default();
-            app.manage(RobloxClient::new(token, None));
+            if let Some(token) = store.get("roblox_token") {
+                let token = token.as_str().unwrap_or_default();
+                app.manage(RobloxClient::new(token, None));
+            }
 
             let universes = store.get("universes");
             let universes = universes
