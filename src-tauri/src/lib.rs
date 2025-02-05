@@ -113,15 +113,14 @@ async fn list_datastores(
 }
 
 #[tauri::command(rename_all = "snake_case")]
-async fn get_datastore_entries(
+async fn list_datastore_entries(
     roblox: State<'_, RobloxClient>,
     cache: State<'_, Mutex<DatastoreCache>>,
     universe_id: UniverseId,
     datastore_id: String,
     page: u32,
-) -> Result<Vec<DatastoreEntry>, Error> {
-    log::trace!("get_datastore_entries");
-    let mut res = Vec::new();
+) -> Result<Vec<String>, Error> {
+    log::trace!("list_datastore_entries");
     let mut cache = cache.lock().await;
 
     if cache.universe_id != universe_id {
@@ -171,28 +170,33 @@ async fn get_datastore_entries(
         page_entries.entries
     };
 
-    for entry in &entries {
-        log::trace!("fetching entry {}", entry);
-        if let Some(cached_entry) = cache.entries.get(entry) {
-            res.push(cached_entry.clone());
-        } else {
-            let entry = match roblox
-                .get_datastore_entry(universe_id, &datastore_id, &entry, None)
-                .await
-            {
-                Ok(entry) => entry,
-                Err(err) => {
-                    log::warn!("{:?}", err);
-                    return Err(err.into());
-                }
-            };
+    Ok(entries)
+}
 
-            cache.entries.insert(entry.id.clone(), entry.clone());
-            res.push(entry);
+#[tauri::command(rename_all = "snake_case")]
+async fn get_datastore_entry(
+    roblox: State<'_, RobloxClient>,
+    cache: State<'_, Mutex<DatastoreCache>>,
+    universe_id: UniverseId,
+    datastore_id: String,
+    entry_id: String,
+) -> Result<DatastoreEntry, Error> {
+    log::trace!("get_datastore_entry");
+    let mut cache = cache.lock().await;
+
+    let entry = match roblox
+        .get_datastore_entry(universe_id, &datastore_id, &entry_id, None)
+        .await
+    {
+        Ok(entry) => entry,
+        Err(err) => {
+            log::warn!("{:?}", err);
+            return Err(err.into());
         }
-    }
+    };
 
-    Ok(res)
+    cache.entries.insert(entry.id.clone(), entry.clone());
+    Ok(entry)
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -259,7 +263,8 @@ pub fn run() {
             add_universe,
             get_init_info,
             list_datastores,
-            get_datastore_entries,
+            list_datastore_entries,
+            get_datastore_entry,
             update_datastore_entry,
             delete_datastore_entry
         ])
