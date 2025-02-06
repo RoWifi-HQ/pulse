@@ -1,4 +1,4 @@
-import { JsonValue, JsonMap, TauriError } from "./types";
+import { JsonValue, JsonMap, TauriError, JsonType } from "./types";
 
 export function isJsonValue(value: unknown): value is JsonValue {
   if (
@@ -32,4 +32,20 @@ export function isJsonMap(value: unknown): value is JsonMap {
 
 export function isTauriError<T>(value: T | TauriError): value is TauriError {
     return (value as TauriError)?.kind !== undefined;
+}
+
+export function getJSONType(value: JsonValue): JsonType {
+  if (isJsonMap(value)) {
+    return JsonType.Object;
+  } else if (Array.isArray(value)) {
+    return JsonType.Array;
+  } else if (typeof value === "number") {
+    return JsonType.Number;
+  } else if (typeof value === "string") {
+    return JsonType.String;
+  } else if (typeof value === "boolean") {
+    return JsonType.Boolean;
+  } else {
+    return JsonType.Null;
+  }
 }

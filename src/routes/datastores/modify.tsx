@@ -136,13 +136,13 @@ export interface DeleteModalProps {
   universe_id: number;
   datastore_id: string;
   page: number;
-  entry: DatastoreEntry;
+  entry_id: string;
 }
 
 export function DeleteModal({
   universe_id,
   datastore_id,
-  entry,
+  entry_id,
   page,
 }: DeleteModalProps) {
   const [isOpen, setOpen] = useState(false);
@@ -152,7 +152,7 @@ export function DeleteModal({
     try {
       await invoke("delete_datastore_entry", {
         page,
-        entry_id: entry.id,
+        entry_id,
       });
       setOpen(false);
       mutate(

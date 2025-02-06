@@ -7,6 +7,15 @@ export type Datastore = {
   id: string;
 };
 
+export enum JsonType {
+  Number = "number",
+  String = "string",
+  Boolean = "boolean",
+  Null = "null",
+  Object = "object",
+  Array = "array"
+}
+
 export type JsonMap = { [key: string]: JsonValue };
 
 export type JsonValue =
