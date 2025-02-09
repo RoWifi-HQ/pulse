@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Button,
   Disclosure,
@@ -214,9 +214,12 @@ function DatastoreEntryForm({ entry }: { entry: DatastoreEntry }) {
   return (
     <form action={onSubmit} className="text-sm font-mono px-2 pb-2">
       <EntryContext.Provider
-        value={{ entry: entryState, setEntry: (newEntry) => {
-          setEntryState(newEntry);
-        } }}
+        value={{
+          entry: entryState,
+          setEntry: (newEntry) => {
+            setEntryState(newEntry);
+          },
+        }}
       >
         <DatastoreEntryData key_={[]} value={entryState} />
       </EntryContext.Provider>
@@ -262,7 +265,7 @@ function DatastoreEntryDataMap({
   key_,
   value,
 }: {
-  key_: string[];
+  key_: any[];
   value: JsonMap;
 }) {
   const [isExpanded, setExpanded] = useState(false);
@@ -301,14 +304,69 @@ function DatastoreEntryDataArray({
   key_,
   value,
 }: {
-  key_: string[];
+  key_: any[];
   value: JsonValue[];
 }) {
   const [isExpanded, setExpanded] = useState(false);
+  const { entry, setEntry } = useEntry();
+
+  function addArrayItem() {
+    const updatedEntry = structuredClone(entry);
+
+    let current = updatedEntry;
+    for (let i = 0; i < key_.length; i++) {
+      // @ts-ignore
+      current = current[key_[i]];
+    }
+
+    current = current as JsonValue[];
+    let newEntry: JsonValue = "";
+    if (current.length > 0) {
+      switch (current[0]) {
+        case JsonType.Array: {
+          newEntry = [];
+          break;
+        }
+        case JsonType.Object: {
+          newEntry = {};
+          break;
+        }
+        case JsonType.Number: {
+          newEntry = 0;
+          break;
+        }
+        case JsonType.String: {
+          newEntry = "";
+          break;
+        }
+        case JsonType.Boolean: {
+          newEntry = false;
+        }
+      }
+    }
+
+    current.push(newEntry);
+    setEntry(updatedEntry);
+  }
+
+  function removeEntryItem(index: number) {
+    const updatedEntry = structuredClone(entry);
+
+    let current = updatedEntry;
+    for (let i = 0; i < key_.length; i++) {
+      // @ts-ignore
+      current = current[key_[i]];
+    }
+
+    current = current as JsonValue[];
+    current.splice(index, 1);
+
+    setEntry(updatedEntry);
+  }
 
   return (
     <Disclosure isExpanded={isExpanded} onExpandedChange={setExpanded}>
-      <Heading>
+      <Heading className="flex items-center gap-x-2">
         <Button slot="trigger" className="flex items-center gap-x-2">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -326,10 +384,33 @@ function DatastoreEntryDataArray({
           </svg>
           {`${key_[key_.length - 1]}: array`}
         </Button>
+        <Button className="text-neutral-400" onPress={() => addArrayItem()}>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={1.5}
+            stroke="currentColor"
+            className="size-4"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+            />
+          </svg>
+        </Button>
       </Heading>
       <DisclosurePanel className="px-2">
         {value.map((v, i) => (
-          <DatastoreEntryData key_={[...key_, i.toString()]} value={v} />
+          <div className="flex gap-x-3">
+            <Button onPress={() => removeEntryItem(i)} className="flex items-center">
+              <span className="size-4 rounded-full text-red-600 border border-red-600 flex items-center">
+                <div className="w-full h-[2px] bg-red-600 m-1" />
+              </span>
+            </Button>
+            <DatastoreEntryData key_={[...key_, i]} value={v} />
+          </div>
         ))}
       </DisclosurePanel>
     </Disclosure>
@@ -338,14 +419,18 @@ function DatastoreEntryDataArray({
 
 function DatastoreEntryDataPrimitive({
   key_,
-  value: initalValue,
+  value: initialValue,
 }: {
   key_: string[];
   value: string | boolean | number | null;
 }) {
   const [isFocused, setFocused] = useState(false);
   const { entry, setEntry } = useEntry();
-  const [value, setValue] = useState(initalValue);
+  const [value, setValue] = useState(initialValue);
+
+  useEffect(() => {
+    setValue(initialValue);
+  }, [initialValue]);
 
   return (
     <div
@@ -394,6 +479,11 @@ function DatastoreEntryDataPrimitive({
                   current[key_[key_.length - 1]] = "";
                   break;
                 }
+                case JsonType.Boolean: {
+                  // @ts-ignore
+                  current[key_[key_.length - 1]] = false;
+                  break;
+                }
               }
               setEntry(updatedEntry);
             }
@@ -413,7 +503,7 @@ function DatastoreEntryDataTypeSelect({
 }) {
   return (
     <Select
-      defaultSelectedKey={defaultValue}
+      selectedKey={defaultValue}
       onSelectionChange={(k) => onChange?.(k as JsonType)}
     >
       <Button className="bg-neutral-600 rounded-lg">
