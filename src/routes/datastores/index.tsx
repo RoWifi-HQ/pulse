@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { useEffect, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   Button,
   Disclosure,
@@ -23,7 +23,7 @@ import {
   JsonValue,
 } from "../../types";
 import { DeleteModal } from "./modify";
-import { EntryContext, useEntry } from "./context";
+import { EntryContext, MapContext, useEntry } from "./context";
 
 async function list_data_entries(
   universe_id: number,
@@ -205,7 +205,6 @@ function DatastoreEntryCard({
 
 function DatastoreEntryForm({ entry }: { entry: DatastoreEntry }) {
   const [entryState, setEntryState] = useState(entry.value);
-  console.log(entryState);
 
   async function onSubmit(formData: FormData) {
     console.log(formData.entries());
@@ -269,11 +268,12 @@ function DatastoreEntryDataMap({
   value: JsonMap;
 }) {
   const [isExpanded, setExpanded] = useState(false);
+  const [keys] = useState(Object.keys(value));
 
   return (
     <Disclosure isExpanded={isExpanded} onExpandedChange={setExpanded}>
-      <Heading>
-        <Button slot="trigger" className="flex items-center gap-x-2">
+      <Heading className="flex items-center gap-x-2">
+        <Button slot="trigger">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
@@ -288,13 +288,20 @@ function DatastoreEntryDataMap({
               d="m8.25 4.5 7.5 7.5-7.5 7.5"
             />
           </svg>
-          {`${key_[key_.length - 1]}: Object`}
         </Button>
+        {`${key_[key_.length - 1]}: Object`}
       </Heading>
       <DisclosurePanel className="px-2">
-        {Object.entries(value).map(([k, v]) => (
-          <DatastoreEntryData key_={[...key_, k]} value={v} />
-        ))}
+        <MapContext.Provider
+          value={keys.reduce((map, value, index) => {
+            map[value] = index;
+            return map;
+          }, {} as Record<string, number>)}
+        >
+          {Object.entries(value).map(([k, v]) => (
+            <DatastoreEntryData key_={[...key_, k]} value={v} />
+          ))}
+        </MapContext.Provider>
       </DisclosurePanel>
     </Disclosure>
   );
@@ -367,7 +374,7 @@ function DatastoreEntryDataArray({
   return (
     <Disclosure isExpanded={isExpanded} onExpandedChange={setExpanded}>
       <Heading className="flex items-center gap-x-2">
-        <Button slot="trigger" className="flex items-center gap-x-2">
+        <Button slot="trigger">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
@@ -382,8 +389,8 @@ function DatastoreEntryDataArray({
               d="m8.25 4.5 7.5 7.5-7.5 7.5"
             />
           </svg>
-          {`${key_[key_.length - 1]}: array`}
         </Button>
+        {`${key_[key_.length - 1]}: array`}
         <Button className="text-neutral-400" onPress={() => addArrayItem()}>
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -404,7 +411,10 @@ function DatastoreEntryDataArray({
       <DisclosurePanel className="px-2">
         {value.map((v, i) => (
           <div className="flex gap-x-3">
-            <Button onPress={() => removeEntryItem(i)} className="flex items-center">
+            <Button
+              onPress={() => removeEntryItem(i)}
+              className="flex items-center"
+            >
               <span className="size-4 rounded-full text-red-600 border border-red-600 flex items-center">
                 <div className="w-full h-[2px] bg-red-600 m-1" />
               </span>
@@ -419,18 +429,46 @@ function DatastoreEntryDataArray({
 
 function DatastoreEntryDataPrimitive({
   key_,
-  value: initialValue,
+  value,
 }: {
   key_: string[];
   value: string | boolean | number | null;
 }) {
   const [isFocused, setFocused] = useState(false);
   const { entry, setEntry } = useEntry();
-  const [value, setValue] = useState(initialValue);
 
-  useEffect(() => {
-    setValue(initialValue);
-  }, [initialValue]);
+  function onValueChange(new_value: any) {
+    if (typeof value === "number") {
+      new_value = parseInt(new_value);
+    }
+    const updatedEntry = structuredClone(entry);
+
+    let current = updatedEntry;
+    for (let i = 0; i < key_.length - 1; i++) {
+      // @ts-ignore
+      current = current[key_[i]];
+    }
+
+    // @ts-ignore
+    current[key_[key_.length - 1]] = new_value;
+    setEntry(updatedEntry);
+  }
+
+  function onKeyChange(new_key: string) {
+    const updatedEntry = structuredClone(entry);
+
+    let current = updatedEntry;
+    for (let i = 0; i < key_.length - 1; i++) {
+      // @ts-ignore
+      current = current[key_[i]];
+    }
+
+    // @ts-ignore
+    delete current[key_[key_.length - 1]];
+    // @ts-ignore
+    current[new_key] = value;
+    setEntry(updatedEntry);
+  }
 
   return (
     <div
@@ -439,11 +477,17 @@ function DatastoreEntryDataPrimitive({
       onBlur={() => setFocused(false)}
       tabIndex={-1}
     >
-      <span className="text-neutral-300">{key_[key_.length - 1] ?? ""}:</span>
+      <input
+        type="text"
+        className="bg-neutral-700 focus:outline focus:bg-neutral-800 rounded-lg focus:outline-white w-24"
+        value={key_[key_.length - 1] ?? "0"}
+        onChange={(e) => onKeyChange(e.target.value)}
+      />
+      :
       <input
         type={typeof value === "number" ? "number" : "text"}
         value={value?.toString()}
-        onChange={(e) => setValue(e.target.value)}
+        onChange={(e) => onValueChange(e.target.value)}
         className="bg-neutral-700 focus:outline focus:bg-neutral-800 rounded-lg focus:outline-white py-[1px] w-16"
         onFocus={() => setFocused(true)}
       />

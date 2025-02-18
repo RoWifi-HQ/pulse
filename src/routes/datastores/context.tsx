@@ -12,3 +12,9 @@ export const EntryContext = createContext<{
 export function useEntry() {
   return useContext(EntryContext);
 }
+
+export const MapContext = createContext<Record<string, number>>({});
+
+export function useMapContext() {
+  return useContext(MapContext);
+}
