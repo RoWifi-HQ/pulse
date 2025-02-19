@@ -7,133 +7,14 @@ import {
   Modal,
   Dialog,
   Heading,
-  Label,
-  TextField,
-  TextArea,
 } from "react-aria-components";
 import { useSWRConfig } from "swr";
 import { toast_queue } from "../../toast";
-import { DatastoreEntry, TauriError, ErrorKind } from "../../types";
-import { isJsonMap } from "../../utils";
-
-export interface EditModalProps {
-  universe_id: number;
-  datastore_id: string;
-  page: number;
-  entry: DatastoreEntry;
-}
-
-export function EditModal({ universe_id, datastore_id, entry, page }: EditModalProps) {
-  const [isOpen, setOpen] = useState(false);
-  const { mutate } = useSWRConfig();
-
-  async function onSubmit(formData: FormData) {
-    const value = Object.fromEntries(
-      Array.from(formData.entries())
-        .filter((e) => e[0].startsWith("value:"))
-        .map(([k, v]) => {
-          const key = k.split(":")[1];
-          return [key, JSON.parse(v.toString())];
-        })
-    );
-    try {
-      await invoke("update_datastore_entry", {
-        entry_id: entry.id,
-        value: JSON.stringify(value),
-        attributes: entry.attributes,
-        users: entry.users,
-      });
-      setOpen(false);
-      mutate(
-        `universes/${universe_id}/datastores/${datastore_id}/page/${page}`
-      );
-      toast_queue.add(
-        { success: true, description: "Entry Modified" },
-        { timeout: 5000 }
-      );
-    } catch (error) {
-      const err = error as TauriError;
-      let description = "";
-      if (err.kind == ErrorKind.Forbidden)
-        description = "The token does not have permissions to update entries.";
-      else if (err.kind == ErrorKind.NotFound)
-        description = "The entry was not found. The data may be outdated.";
-      else description = "Something went wrong.";
-      toast_queue.add(
-        { success: false, description: description },
-        { timeout: 5000 }
-      );
-    }
-  }
-
-  return (
-    <DialogTrigger isOpen={isOpen} onOpenChange={setOpen}>
-      <Button className="rounded-xl hover:bg-neutral-700 h-8 w-8 p-2">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          strokeWidth={1.5}
-          stroke="currentColor"
-          className="w-full h-full"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"
-          />
-        </svg>
-      </Button>
-      <ModalOverlay className="fixed top-0 left-0 w-screen h-screen bg-black/50 flex items-center justify-center z-50">
-        <Modal className="max-w-screen-lg max-h-[75%] overflow-y-auto scrollbar bg-neutral-800 outline-none p-8 rounded-md">
-          <Dialog className="outline-none flex flex-col items-center">
-            <Heading slot="title" className="font-bold text-2xl">
-              Edit Entry
-            </Heading>
-            <form
-              action={onSubmit}
-              className="outline-none grid grid-cols-3 gap-x-6 gap-y-8 items-center mt-12 w-full"
-            >
-              <Label className="font-semibold">Id</Label>
-              <span className="col-span-2">{entry.id}</span>
-              {isJsonMap(entry.value) &&
-                Object.entries(entry.value).map(([k, v]) => (
-                  <>
-                    <Label className="font-semibold">{k}</Label>
-                    <TextField
-                      name={`value:${k}`}
-                      className="col-span-2 min-w-64"
-                      defaultValue={JSON.stringify(v)}
-                    >
-                      <TextArea className="h-48 w-96 bg-neutral-900 overflow-y-auto scrollbar text-sm p-4 rounded-md" />
-                    </TextField>
-                  </>
-                ))}
-              <div className="col-span-3 flex w-full justify-evenly">
-                <Button
-                  type="button"
-                  onPress={() => setOpen(false)}
-                  className="px-3 py-2 hover:bg-neutral-700 rounded-md"
-                >
-                  Close
-                </Button>
-                <Button
-                  type="submit"
-                  className="px-3 py-2 bg-blue-600 hover:bg-blue-800 rounded-lg"
-                >
-                  Submit
-                </Button>
-              </div>
-            </form>
-          </Dialog>
-        </Modal>
-      </ModalOverlay>
-    </DialogTrigger>
-  );
-}
+import { TauriError, ErrorKind } from "../../types";
+import { useSearchParams } from "react-router";
 
 export interface DeleteModalProps {
-  universe_id: number;
+  universe_id: string;
   datastore_id: string;
   page: number;
   entry_id: string;
@@ -147,6 +28,7 @@ export function DeleteModal({
 }: DeleteModalProps) {
   const [isOpen, setOpen] = useState(false);
   const { mutate } = useSWRConfig();
+  const [searchParams] = useSearchParams();
 
   async function onSubmit() {
     try {
@@ -155,9 +37,12 @@ export function DeleteModal({
         entry_id,
       });
       setOpen(false);
-      mutate(
-        `universes/${universe_id}/datastores/${datastore_id}/page/${page}`
-      );
+      mutate([
+        universe_id,
+        datastore_id,
+        page,
+        searchParams.get("filter")?.toString(),
+      ]);
     } catch (error) {
       const err = error as TauriError;
       let description = "";
