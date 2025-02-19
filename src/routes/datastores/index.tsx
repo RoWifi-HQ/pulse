@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { useMemo, useRef, useState } from "react";
+import { useState } from "react";
 import {
   Button,
   Disclosure,
@@ -13,17 +13,17 @@ import {
 } from "react-aria-components";
 import { useParams } from "react-router";
 import useSWR from "swr";
-import { getJSONType, isTauriError } from "../../utils";
+import { getJSONType, isTauriError, toKVJsonValue } from "../../utils";
 import {
   type DatastoreEntry,
   type TauriError,
   ErrorKind,
-  JsonMap,
   JsonType,
-  JsonValue,
+  KVJsonObject,
+  KVJsonValue,
 } from "../../types";
 import { DeleteModal } from "./modify";
-import { EntryContext, MapContext, useEntry } from "./context";
+import { EntryContext, useEntry } from "./context";
 
 async function list_data_entries(
   universe_id: number,
@@ -204,7 +204,8 @@ function DatastoreEntryCard({
 }
 
 function DatastoreEntryForm({ entry }: { entry: DatastoreEntry }) {
-  const [entryState, setEntryState] = useState(entry.value);
+  const [entryState, setEntryState] = useState(toKVJsonValue(entry.value));
+  console.log(entryState);
 
   async function onSubmit(formData: FormData) {
     console.log(formData.entries());
@@ -220,7 +221,13 @@ function DatastoreEntryForm({ entry }: { entry: DatastoreEntry }) {
           },
         }}
       >
-        <DatastoreEntryData key_={[]} value={entryState} />
+        {(entryState as KVJsonObject).map((entry) => (
+          <DatastoreEntryData
+            key_={[entry.key]}
+            value={entry.value}
+            type={entry.type}
+          />
+        ))}
       </EntryContext.Provider>
     </form>
   );
@@ -229,29 +236,21 @@ function DatastoreEntryForm({ entry }: { entry: DatastoreEntry }) {
 function DatastoreEntryData({
   key_,
   value,
+  type,
 }: {
   key_: string[];
-  value: JsonValue;
+  value: KVJsonValue;
+  type: JsonType;
 }) {
-  switch (getJSONType(value)) {
+  switch (type) {
     case JsonType.Object: {
       return (
-        <>
-          {key_.length > 0 ? (
-            <DatastoreEntryDataMap key_={key_} value={value as JsonMap} />
-          ) : (
-            <>
-              {Object.entries(value as JsonMap).map(([k, v]) => (
-                <DatastoreEntryData key_={[...key_, k]} value={v} />
-              ))}
-            </>
-          )}
-        </>
+        <DatastoreEntryDataMap key_={key_} value={value as KVJsonObject} />
       );
     }
     case JsonType.Array: {
       return (
-        <DatastoreEntryDataArray key_={key_} value={value as JsonValue[]} />
+        <DatastoreEntryDataArray key_={key_} value={value as KVJsonObject} />
       );
     }
     default: {
@@ -265,10 +264,103 @@ function DatastoreEntryDataMap({
   value,
 }: {
   key_: any[];
-  value: JsonMap;
+  value: KVJsonObject;
 }) {
   const [isExpanded, setExpanded] = useState(false);
-  const [keys] = useState(Object.keys(value));
+  const { entry, setEntry } = useEntry();
+
+  function addObjectItem() {
+    const updatedEntry = structuredClone(entry);
+
+    let current = updatedEntry as KVJsonObject;
+    for (let i = 0; i < key_.length; i++) {
+      // @ts-ignore
+      current = current.find((v) => v.key == key_[i])?.value;
+    }
+
+    current.push({
+      key: `field${current.length}`,
+      value: "",
+      type: JsonType.String,
+    });
+    setEntry(updatedEntry);
+  }
+
+  function removeCurrent() {
+    const updatedEntry = structuredClone(entry);
+
+    let current = updatedEntry as KVJsonObject;
+    for (let i = 0; i < key_.length - 1; i++) {
+      // @ts-ignore
+      current = current.find((v) => v.key == key_[i])?.value;
+    }
+
+    const index = current.findIndex((v) => v.key == key_[key_.length - 1]);
+    current.splice(index, 1);
+    setEntry(updatedEntry);
+  }
+
+  function onTypeChange(new_type: JsonType) {
+    const updatedEntry = structuredClone(entry);
+    if (new_type !== getJSONType(value)) {
+      let current = updatedEntry as KVJsonObject;
+      for (let i = 0; i < key_.length - 1; i++) {
+        // @ts-ignore
+        current = current.find((v) => v.key == key_[i])?.value;
+      }
+
+      // @ts-ignore
+      const index = current.findIndex((v) => v.key == key_[key_.length - 1]);
+      switch (new_type) {
+        case JsonType.Array: {
+          // @ts-ignore
+          current[index].value = [];
+          current[index].type = JsonType.Array;
+          break;
+        }
+        case JsonType.Object: {
+          // @ts-ignore
+          current[index].value = [];
+          current[index].type = JsonType.Object;
+          break;
+        }
+        case JsonType.Number: {
+          // @ts-ignore
+          current[index].value = 0;
+          current[index].type = JsonType.Number;
+          break;
+        }
+        case JsonType.String: {
+          // @ts-ignore
+          current[index].value = "";
+          current[index].type = JsonType.String;
+          break;
+        }
+        case JsonType.Boolean: {
+          // @ts-ignore
+          current[index].value = false;
+          current[index].type = JsonType.Boolean;
+          break;
+        }
+      }
+      setEntry(updatedEntry);
+    }
+  }
+
+  function onKeyChange(new_key: string) {
+    const updatedEntry = structuredClone(entry);
+
+    let current = updatedEntry as KVJsonObject;
+    for (let i = 0; i < key_.length - 1; i++) {
+      // @ts-ignore
+      current = current.find((v) => v.key == key_[i])?.value;
+    }
+
+    // @ts-ignore
+    const index = current.findIndex((v) => v.key == key_[key_.length - 1]);
+    current[index].key = new_key;
+    setEntry(updatedEntry);
+  }
 
   return (
     <Disclosure isExpanded={isExpanded} onExpandedChange={setExpanded}>
@@ -289,19 +381,46 @@ function DatastoreEntryDataMap({
             />
           </svg>
         </Button>
-        {`${key_[key_.length - 1]}: Object`}
+        <input
+          type="text"
+          className="bg-neutral-700 focus:outline focus:bg-neutral-800 rounded-lg focus:outline-white w-24"
+          value={key_[key_.length - 1]}
+          onChange={(e) => onKeyChange(e.target.value)}
+        />
+        <DatastoreEntryDataTypeSelect
+          defaultValue={JsonType.Object}
+          onChange={onTypeChange}
+        />
+        <Button className="text-neutral-400" onPress={() => addObjectItem()}>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={1.5}
+            stroke="currentColor"
+            className="size-4"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+            />
+          </svg>
+        </Button>
+        <Button onPress={() => removeCurrent()} className="flex items-center">
+          <span className="size-4 rounded-full text-red-600 border border-red-600 flex items-center">
+            <div className="w-full h-[2px] bg-red-600 m-1" />
+          </span>
+        </Button>
       </Heading>
       <DisclosurePanel className="px-2">
-        <MapContext.Provider
-          value={keys.reduce((map, value, index) => {
-            map[value] = index;
-            return map;
-          }, {} as Record<string, number>)}
-        >
-          {Object.entries(value).map(([k, v]) => (
-            <DatastoreEntryData key_={[...key_, k]} value={v} />
-          ))}
-        </MapContext.Provider>
+        {value.map((entry) => (
+          <DatastoreEntryData
+            key_={[...key_, entry.key]}
+            value={entry.value}
+            type={entry.type}
+          />
+        ))}
       </DisclosurePanel>
     </Disclosure>
   );
@@ -312,7 +431,7 @@ function DatastoreEntryDataArray({
   value,
 }: {
   key_: any[];
-  value: JsonValue[];
+  value: KVJsonObject;
 }) {
   const [isExpanded, setExpanded] = useState(false);
   const { entry, setEntry } = useEntry();
@@ -320,54 +439,93 @@ function DatastoreEntryDataArray({
   function addArrayItem() {
     const updatedEntry = structuredClone(entry);
 
-    let current = updatedEntry;
-    for (let i = 0; i < key_.length; i++) {
+    let current = updatedEntry as KVJsonObject;
+    for (let i = 0; i < key_.length - 1; i++) {
       // @ts-ignore
-      current = current[key_[i]];
+      current = current.find((v) => v.key == key_[i])?.value;
     }
 
-    current = current as JsonValue[];
-    let newEntry: JsonValue = "";
-    if (current.length > 0) {
-      switch (current[0]) {
-        case JsonType.Array: {
-          newEntry = [];
-          break;
-        }
-        case JsonType.Object: {
-          newEntry = {};
-          break;
-        }
-        case JsonType.Number: {
-          newEntry = 0;
-          break;
-        }
-        case JsonType.String: {
-          newEntry = "";
-          break;
-        }
-        case JsonType.Boolean: {
-          newEntry = false;
-        }
-      }
-    }
-
-    current.push(newEntry);
+    current.push({
+      key: current.length.toString(),
+      value: "",
+      type: JsonType.String,
+    });
     setEntry(updatedEntry);
   }
 
-  function removeEntryItem(index: number) {
+  function removeCurrent() {
     const updatedEntry = structuredClone(entry);
 
-    let current = updatedEntry;
-    for (let i = 0; i < key_.length; i++) {
+    let current = updatedEntry as KVJsonObject;
+    for (let i = 0; i < key_.length - 1; i++) {
       // @ts-ignore
-      current = current[key_[i]];
+      current = current.find((v) => v.key == key_[i])?.value;
     }
 
-    current = current as JsonValue[];
+    const index = current.findIndex((v) => v.key == key_[key_.length - 1]);
     current.splice(index, 1);
+    setEntry(updatedEntry);
+  }
 
+  function onTypeChange(new_type: JsonType) {
+    const updatedEntry = structuredClone(entry);
+    if (new_type !== getJSONType(value)) {
+      let current = updatedEntry as KVJsonObject;
+      for (let i = 0; i < key_.length - 1; i++) {
+        // @ts-ignore
+        current = current.find((v) => v.key == key_[i])?.value;
+      }
+
+      // @ts-ignore
+      const index = current.findIndex((v) => v.key == key_[key_.length - 1]);
+      switch (new_type) {
+        case JsonType.Array: {
+          // @ts-ignore
+          current[index].value = [];
+          current[index].type = JsonType.Array;
+          break;
+        }
+        case JsonType.Object: {
+          // @ts-ignore
+          current[index].value = [];
+          current[index].type = JsonType.Object;
+          break;
+        }
+        case JsonType.Number: {
+          // @ts-ignore
+          current[index].value = 0;
+          current[index].type = JsonType.Number;
+          break;
+        }
+        case JsonType.String: {
+          // @ts-ignore
+          current[index].value = "";
+          current[index].type = JsonType.String;
+          break;
+        }
+        case JsonType.Boolean: {
+          // @ts-ignore
+          current[index].value = false;
+          current[index].type = JsonType.Boolean;
+          break;
+        }
+      }
+      setEntry(updatedEntry);
+    }
+  }
+
+  function onKeyChange(new_key: string) {
+    const updatedEntry = structuredClone(entry);
+
+    let current = updatedEntry as KVJsonObject;
+    for (let i = 0; i < key_.length - 1; i++) {
+      // @ts-ignore
+      current = current.find((v) => v.key == key_[i])?.value;
+    }
+
+    // @ts-ignore
+    const index = current.findIndex((v) => v.key == key_[key_.length - 1]);
+    current[index].key = new_key;
     setEntry(updatedEntry);
   }
 
@@ -390,7 +548,16 @@ function DatastoreEntryDataArray({
             />
           </svg>
         </Button>
-        {`${key_[key_.length - 1]}: array`}
+        <input
+          type="text"
+          className="bg-neutral-700 focus:outline focus:bg-neutral-800 rounded-lg focus:outline-white w-24"
+          value={key_[key_.length - 1]}
+          onChange={(e) => onKeyChange(e.target.value)}
+        />
+        <DatastoreEntryDataTypeSelect
+          defaultValue={JsonType.Array}
+          onChange={onTypeChange}
+        />
         <Button className="text-neutral-400" onPress={() => addArrayItem()}>
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -407,20 +574,19 @@ function DatastoreEntryDataArray({
             />
           </svg>
         </Button>
+        <Button onPress={() => removeCurrent()} className="flex items-center">
+          <span className="size-4 rounded-full text-red-600 border border-red-600 flex items-center">
+            <div className="w-full h-[2px] bg-red-600 m-1" />
+          </span>
+        </Button>
       </Heading>
       <DisclosurePanel className="px-2">
-        {value.map((v, i) => (
-          <div className="flex gap-x-3">
-            <Button
-              onPress={() => removeEntryItem(i)}
-              className="flex items-center"
-            >
-              <span className="size-4 rounded-full text-red-600 border border-red-600 flex items-center">
-                <div className="w-full h-[2px] bg-red-600 m-1" />
-              </span>
-            </Button>
-            <DatastoreEntryData key_={[...key_, i]} value={v} />
-          </div>
+        {value.map((v) => (
+          <DatastoreEntryData
+            key_={[...key_, v.key]}
+            value={v.value}
+            type={v.type}
+          />
         ))}
       </DisclosurePanel>
     </Disclosure>
@@ -443,31 +609,92 @@ function DatastoreEntryDataPrimitive({
     }
     const updatedEntry = structuredClone(entry);
 
-    let current = updatedEntry;
+    let current = updatedEntry as KVJsonObject;
     for (let i = 0; i < key_.length - 1; i++) {
       // @ts-ignore
-      current = current[key_[i]];
+      current = current.find((v) => v.key == key_[i])?.value;
     }
 
-    // @ts-ignore
-    current[key_[key_.length - 1]] = new_value;
+    const index = current.findIndex((v) => v.key == key_[key_.length - 1]);
+    current[index].value = new_value;
     setEntry(updatedEntry);
   }
 
   function onKeyChange(new_key: string) {
     const updatedEntry = structuredClone(entry);
 
-    let current = updatedEntry;
+    let current = updatedEntry as KVJsonObject;
     for (let i = 0; i < key_.length - 1; i++) {
       // @ts-ignore
-      current = current[key_[i]];
+      current = current.find((v) => v.key == key_[i])?.value;
     }
 
     // @ts-ignore
-    delete current[key_[key_.length - 1]];
-    // @ts-ignore
-    current[new_key] = value;
+    const index = current.findIndex((v) => v.key == key_[key_.length - 1]);
+    current[index].key = new_key;
     setEntry(updatedEntry);
+  }
+
+  function removeCurrent() {
+    const updatedEntry = structuredClone(entry);
+
+    let current = updatedEntry as KVJsonObject;
+    for (let i = 0; i < key_.length - 1; i++) {
+      // @ts-ignore
+      current = current.find((v) => v.key == key_[i])?.value;
+    }
+
+    // @ts-ignore
+    const index = current.findIndex((v) => v.key == key_[key_.length - 1]);
+    current.splice(index, 1);
+    setEntry(updatedEntry);
+  }
+
+  function onTypeChange(new_type: JsonType) {
+    const updatedEntry = structuredClone(entry);
+    if (new_type !== getJSONType(value)) {
+      let current = updatedEntry as KVJsonObject;
+      for (let i = 0; i < key_.length - 1; i++) {
+        // @ts-ignore
+        current = current.find((v) => v.key == key_[i])?.value;
+      }
+
+      // @ts-ignore
+      const index = current.findIndex((v) => v.key == key_[key_.length - 1]);
+      switch (new_type) {
+        case JsonType.Array: {
+          // @ts-ignore
+          current[index].value = [];
+          current[index].type = JsonType.Array;
+          break;
+        }
+        case JsonType.Object: {
+          // @ts-ignore
+          current[index].value = [];
+          current[index].type = JsonType.Object;
+          break;
+        }
+        case JsonType.Number: {
+          // @ts-ignore
+          current[index].value = 0;
+          current[index].type = JsonType.Number;
+          break;
+        }
+        case JsonType.String: {
+          // @ts-ignore
+          current[index].value = "";
+          current[index].type = JsonType.String;
+          break;
+        }
+        case JsonType.Boolean: {
+          // @ts-ignore
+          current[index].value = false;
+          current[index].type = JsonType.Boolean;
+          break;
+        }
+      }
+      setEntry(updatedEntry);
+    }
   }
 
   return (
@@ -480,7 +707,7 @@ function DatastoreEntryDataPrimitive({
       <input
         type="text"
         className="bg-neutral-700 focus:outline focus:bg-neutral-800 rounded-lg focus:outline-white w-24"
-        value={key_[key_.length - 1] ?? "0"}
+        value={key_[key_.length - 1]}
         onChange={(e) => onKeyChange(e.target.value)}
       />
       :
@@ -494,46 +721,14 @@ function DatastoreEntryDataPrimitive({
       {isFocused && (
         <DatastoreEntryDataTypeSelect
           defaultValue={getJSONType(value)}
-          onChange={(t) => {
-            const updatedEntry = structuredClone(entry);
-            if (t !== getJSONType(value)) {
-              let current = updatedEntry;
-              for (let i = 0; i < key_.length - 1; i++) {
-                // @ts-ignore
-                current = current[key_[i]];
-              }
-              switch (t) {
-                case JsonType.Array: {
-                  // @ts-ignore
-                  current[key_[key_.length - 1]] = [];
-                  break;
-                }
-                case JsonType.Object: {
-                  // @ts-ignore
-                  current[key_[key_.length - 1]] = {};
-                  break;
-                }
-                case JsonType.Number: {
-                  // @ts-ignore
-                  current[key_[key_.length - 1]] = 0;
-                  break;
-                }
-                case JsonType.String: {
-                  // @ts-ignore
-                  current[key_[key_.length - 1]] = "";
-                  break;
-                }
-                case JsonType.Boolean: {
-                  // @ts-ignore
-                  current[key_[key_.length - 1]] = false;
-                  break;
-                }
-              }
-              setEntry(updatedEntry);
-            }
-          }}
+          onChange={onTypeChange}
         />
       )}
+      <Button onPress={() => removeCurrent()} className="flex items-center">
+        <span className="size-4 rounded-full text-red-600 border border-red-600 flex items-center">
+          <div className="w-full h-[2px] bg-red-600 m-1" />
+        </span>
+      </Button>
     </div>
   );
 }
@@ -547,6 +742,7 @@ function DatastoreEntryDataTypeSelect({
 }) {
   return (
     <Select
+      aria-label="Select"
       selectedKey={defaultValue}
       onSelectionChange={(k) => onChange?.(k as JsonType)}
     >

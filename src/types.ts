@@ -13,7 +13,7 @@ export enum JsonType {
   Boolean = "boolean",
   Null = "null",
   Object = "object",
-  Array = "array"
+  Array = "array",
 }
 
 export type JsonMap = { [key: string]: JsonValue };
@@ -25,6 +25,15 @@ export type JsonValue =
   | null
   | JsonValue[]
   | JsonMap;
+
+export type KVJsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | KVJsonObject;
+
+export type KVJsonObject = { key: string; value: KVJsonValue; type: JsonType }[];
 
 export enum DatastoreEntryState {
   Unspecified = "STATE_UNSPECIFIED",

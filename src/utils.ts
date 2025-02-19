@@ -1,4 +1,4 @@
-import { JsonValue, JsonMap, TauriError, JsonType } from "./types";
+import { JsonValue, JsonMap, TauriError, JsonType, KVJsonValue } from "./types";
 
 export function isJsonValue(value: unknown): value is JsonValue {
   if (
@@ -47,5 +47,16 @@ export function getJSONType(value: JsonValue): JsonType {
     return JsonType.Boolean;
   } else {
     return JsonType.Null;
+  }
+}
+
+export function toKVJsonValue(value: JsonValue): KVJsonValue {
+  switch(getJSONType(value)) {
+    case JsonType.Object:
+      return Object.entries(value as JsonMap).map(([k, v]) => { return { key: k, value: toKVJsonValue(v), type: getJSONType(v) } });
+    case JsonType.Array:
+      return (value as JsonValue[]).map((v, k) => { return { key: k.toString(), value: toKVJsonValue(v), type: getJSONType(v) } });
+    default:
+      return value as KVJsonValue
   }
 }

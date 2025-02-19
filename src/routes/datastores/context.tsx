@@ -1,9 +1,9 @@
 import { createContext, useContext } from "react";
-import { JsonValue } from "../../types";
+import { KVJsonValue } from "../../types";
 
 export const EntryContext = createContext<{
-  entry: JsonValue;
-  setEntry: (newEntry: JsonValue) => void;
+  entry: KVJsonValue;
+  setEntry: (newEntry: KVJsonValue) => void;
 }>({
   entry: null,
   setEntry: () => {},
