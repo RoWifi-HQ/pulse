@@ -11,7 +11,7 @@ import {
   Select,
   SelectValue,
 } from "react-aria-components";
-import { useParams } from "react-router";
+import { Link, useParams, useSearchParams } from "react-router";
 import useSWR from "swr";
 import { getJSONType, isTauriError, toKVJsonValue } from "../../utils";
 import {
@@ -24,17 +24,20 @@ import {
 } from "../../types";
 import { DeleteModal } from "./modify";
 import { EntryContext, useEntry } from "./context";
+import { useDebouncedCallback } from "use-debounce";
 
 async function list_data_entries(
   universe_id: number,
   datastore_id: string,
-  page: number
+  page: number,
+  filter?: string
 ) {
   try {
     const entries = await invoke("list_datastore_entries", {
       universe_id,
       datastore_id,
       page,
+      filter
     });
     return entries as string[];
   } catch (error) {
@@ -61,15 +64,65 @@ async function get_datastore_entry(
 
 export default function DatastorePage() {
   const params = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const handleEntryFilter = useDebouncedCallback((term: string) => {
+    setSearchParams((params) => {
+      if (term) {
+        params.set("filter", term);
+      } else {
+        params.delete("filter");
+      }
+      return params;
+    });
+  }, 1000);
+
+  return (
+    <div className="h-full w-full flex flex-col">
+      <div className="p-4 flex gap-x-4">
+        <div className="flex items-center gap-x-1 text-neutral-300 text-sm">
+          <Link to="/" className="hover:text-neutral-500">
+            Universes
+          </Link>
+          <span>{">"}</span>
+          <span>{params.universe_id}</span>
+          <span>{">"}</span>
+          <Link
+            to={`/universes/${params.universe_id}/datastores/${params.datastore_id}`}
+            className="hover:text-neutral-500"
+          >
+            {params.datastore_id}
+          </Link>
+        </div>
+
+        <input
+          type="text"
+          className="w-full px-3 py-2 text-sm bg-black border border-gray-600 rounded-md focus:outline-hidden hover:border-fuchsia-700"
+          placeholder="Filter by entry ID"
+          defaultValue={searchParams.get("filter")?.toString()}
+          onChange={(e) => {
+            handleEntryFilter(e.target.value);
+          }}
+        />
+      </div>
+      <DatastoreEntries />
+    </div>
+  );
+}
+
+function DatastoreEntries() {
+  const params = useParams();
   const [page, setPage] = useState(1);
+  const [searchParams] = useSearchParams();
 
   const { data: entries } = useSWR(
-    `universes/${params.universe_id!}/datastores/${params.datastore_id!}/page/${page}`,
+    [params.universe_id, params.datastore_id, page, searchParams.get("filter")?.toString()],
     () =>
       list_data_entries(
         parseInt(params.universe_id!),
         params.datastore_id!,
-        page
+        page,
+        searchParams.get("filter")?.toString()
       ),
     {
       revalidateOnFocus: false,

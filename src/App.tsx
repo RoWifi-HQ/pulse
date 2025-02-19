@@ -9,7 +9,6 @@ import { RouterProvider } from "react-aria-components";
 import Home from "./routes";
 import Layout from "./routes/layout";
 import DatastorePage from "./routes/datastores";
-import DatastoreLayout from "./routes/datastores/layout";
 import { GlobalToastRegion } from "./toast";
 
 import "./App.css";
@@ -31,10 +30,8 @@ export default function App() {
             <Route index element={<Home />} />
             <Route
               path="/universes/:universe_id/datastores/:datastore_id"
-              element={<DatastoreLayout />}
-            >
-              <Route index element={<DatastorePage />} />
-            </Route>
+              element={<DatastorePage />}
+            />
           </Route>
         </Routes>
       </RouterProvider>

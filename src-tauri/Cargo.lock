@@ -3326,7 +3326,7 @@ dependencies = [
 [[package]]
 name = "rowifi_roblox"
 version = "4.2.0"
-source = "git+https://github.com/RoWifi-HQ/RoWifi-V4?branch=feature%2Fdatastores#c5040cb5cb22396715193d736c1888fcfb1aa0d4"
+source = "git+https://github.com/RoWifi-HQ/RoWifi-V4?branch=feature%2Fdatastores#005bb9670c0c4a969b52d460f4159f1235feed5d"
 dependencies = [
  "http-body-util",
  "hyper",
@@ -3343,7 +3343,7 @@ dependencies = [
 [[package]]
 name = "rowifi_roblox_models"
 version = "4.2.0"
-source = "git+https://github.com/RoWifi-HQ/RoWifi-V4?branch=feature%2Fdatastores#c5040cb5cb22396715193d736c1888fcfb1aa0d4"
+source = "git+https://github.com/RoWifi-HQ/RoWifi-V4?branch=feature%2Fdatastores#005bb9670c0c4a969b52d460f4159f1235feed5d"
 dependencies = [
  "bytes",
  "chrono",

@@ -31,6 +31,7 @@ pub struct PageEntries {
 pub struct DatastoreCache {
     pub universe_id: UniverseId,
     pub datastore_id: String,
+    pub filter: Option<String>,
     pub page_entries: HashMap<u32, PageEntries>,
     pub entries: HashMap<String, DatastoreEntry>,
 }
@@ -119,6 +120,7 @@ async fn list_datastore_entries(
     universe_id: UniverseId,
     datastore_id: String,
     page: u32,
+    filter: Option<String>,
 ) -> Result<Vec<String>, Error> {
     log::trace!("list_datastore_entries");
     let mut cache = cache.lock().await;
@@ -130,6 +132,11 @@ async fn list_datastore_entries(
     }
     if cache.datastore_id != datastore_id {
         cache.datastore_id = datastore_id.clone();
+        cache.page_entries.clear();
+        cache.entries.clear();
+    }
+    if cache.filter != filter {
+        cache.filter = filter.clone();
         cache.page_entries.clear();
         cache.entries.clear();
     }
@@ -151,6 +158,7 @@ async fn list_datastore_entries(
                 &datastore_id,
                 &urlencoding::encode(&page_token),
                 25,
+                filter.as_deref()
             )
             .await
         {
@@ -287,6 +295,7 @@ pub fn run() {
             app.manage(Mutex::new(DatastoreCache {
                 universe_id: UniverseId(0),
                 datastore_id: "".into(),
+                filter: None,
                 page_entries: HashMap::new(),
                 entries: HashMap::new(),
             }));
