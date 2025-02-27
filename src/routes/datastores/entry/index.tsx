@@ -13,7 +13,14 @@ import {
 import { toKVJsonValue, toJsonValue, isTauriError } from "../../../utils";
 import { EntryContext } from "../context";
 import { DatastoreEntryData } from "./components";
-import { Button } from "react-aria-components";
+import {
+  Button,
+  ListBox,
+  ListBoxItem,
+  Popover,
+  Select,
+  SelectValue,
+} from "react-aria-components";
 import { DeleteModal } from "../modify";
 
 async function get_datastore_entry(
@@ -28,6 +35,25 @@ async function get_datastore_entry(
       entry_id,
     });
     return entry as DatastoreEntry;
+  } catch (error) {
+    return error as TauriError;
+  }
+}
+
+async function list_datastore_entry_revisions(
+  universe_id: number,
+  datastore_id: string,
+  entry_id: string,
+  page: number
+) {
+  try {
+    const revisions = await invoke("list_datastore_entry_revisions", {
+      universe_id,
+      datastore_id,
+      entry_id,
+      page,
+    });
+    return revisions as string[];
   } catch (error) {
     return error as TauriError;
   }
@@ -69,8 +95,9 @@ export default function DatastoreEntryPage() {
 
 function DatastoreEntryCard({ entry_id }: { entry_id: string }) {
   const params = useParams();
+  const [revision, setRevision] = useState("latest");
   const { data: entry } = useSWR(
-    `entries/${entry_id}`,
+    `entries/${entry_id}/revisions/${revision}`,
     () =>
       get_datastore_entry(
         parseInt(params.universe_id!),
@@ -81,14 +108,51 @@ function DatastoreEntryCard({ entry_id }: { entry_id: string }) {
       revalidateOnFocus: false,
     }
   );
+  const { data: revisions } = useSWR(
+    `entries/${entry_id}/revisions`,
+    () =>
+      list_datastore_entry_revisions(
+        parseInt(params.universe_id!),
+        params.datastore_id!,
+        entry_id,
+        1
+      ),
+    {
+      revalidateOnFocus: false,
+    }
+  );
 
   return (
     <>
-      <div className="flex w-full px-2">
+      <div className="flex w-full items-center px-2">
+        {!isTauriError(revisions) && (
+          <Select
+            selectedKey={revision}
+            onSelectionChange={(k) => setRevision(k as string)}
+            aria-label="revision"
+            placeholder="latest"
+            className="ml-auto"
+          >
+            <Button className="w-64 h-8 rounded-lg border border-neutral-200">
+              <SelectValue />
+            </Button>
+            <Popover className="w-(--trigger-width)">
+              <ListBox className="list-none flex flex-col max-h-40 rounded-lg overflow-auto z-50 border border-solid border-[#4f5254] bg-[#313335]">
+                {(revisions ?? []).map((r) => {
+                  return (
+                    <ListBoxItem className="p-2 text-center outline-none focus:bg-neutral-700 transition-colors duration-200" key={r} id={r}>
+                      {r}
+                    </ListBoxItem>
+                  );
+                })}
+              </ListBox>
+            </Popover>
+          </Select>
+        )}
         <Button
           type="submit"
           form={entry_id}
-          className="rounded-xl text-blue-700 hover:text-white hover:bg-blue-500 border border-blue-700 h-8 w-8 p-1 mr-4 outline-none ml-auto"
+          className="rounded-xl text-blue-700 hover:text-white hover:bg-blue-500 border border-blue-700 h-8 w-8 p-1 mr-4 outline-none"
         >
           <svg
             viewBox="0 0 24 24"

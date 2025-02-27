@@ -28,12 +28,23 @@ pub struct PageEntries {
     pub next_page_token: Option<String>,
 }
 
+#[derive(Clone)]
+pub struct PageRevisions {
+    pub revisions: Vec<String>,
+    pub next_page_token: Option<String>,
+}
+
 pub struct DatastoreCache {
     pub universe_id: UniverseId,
     pub datastore_id: String,
     pub filter: Option<String>,
     pub page_entries: HashMap<u32, PageEntries>,
     pub entries: HashMap<String, DatastoreEntry>,
+}
+
+pub struct EntryCache {
+    pub entry_id: String,
+    pub page_revisions: HashMap<u32, PageRevisions>,
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -158,7 +169,7 @@ async fn list_datastore_entries(
                 &datastore_id,
                 &urlencoding::encode(&page_token),
                 25,
-                filter.as_deref()
+                filter.as_deref(),
             )
             .await
         {
@@ -182,18 +193,91 @@ async fn list_datastore_entries(
 }
 
 #[tauri::command(rename_all = "snake_case")]
+async fn list_datastore_entry_revisions(
+    roblox: State<'_, RobloxClient>,
+    cache: State<'_, Mutex<EntryCache>>,
+    universe_id: UniverseId,
+    datastore_id: String,
+    entry_id: String,
+    page: u32,
+) -> Result<Vec<String>, Error> {
+    log::trace!("list_datastore_entry_revisions");
+    let mut cache = cache.lock().await;
+
+    if cache.entry_id != entry_id {
+        cache.entry_id = entry_id.clone();
+        cache.page_revisions.clear();
+    }
+
+    let revisions = if let Some(page_revisions) = cache.page_revisions.get(&page) {
+        page_revisions.revisions.clone()
+    } else {
+        let page_token = cache
+            .page_revisions
+            .get(&(page - 1))
+            .map(|data| data.next_page_token.clone())
+            .flatten()
+            .unwrap_or_default();
+        log::trace!("{}", page_token);
+
+        let page_revisions = match roblox
+            .list_datastore_entry_revisions(
+                universe_id,
+                &datastore_id,
+                &entry_id,
+                &urlencoding::encode(&page_token),
+                25,
+            )
+            .await
+        {
+            Ok(e) => e,
+            Err(err) => {
+                log::error!("{:?}", err);
+                return Err(err.into());
+            }
+        };
+
+        let page_revisions: PageRevisions = PageRevisions {
+            revisions: page_revisions
+                .data
+                .into_iter()
+                .map(|e| e.revision_id.unwrap())
+                .collect(),
+            next_page_token: page_revisions.next_page_token,
+        };
+        cache.page_revisions.insert(page, page_revisions.clone());
+
+        page_revisions.revisions
+    };
+
+    Ok(revisions)
+}
+
+#[tauri::command(rename_all = "snake_case")]
 async fn get_datastore_entry(
     roblox: State<'_, RobloxClient>,
     cache: State<'_, Mutex<DatastoreCache>>,
     universe_id: UniverseId,
     datastore_id: String,
     entry_id: String,
+    revision_id: Option<String>,
 ) -> Result<DatastoreEntry, Error> {
     log::trace!("get_datastore_entry");
     let mut cache = cache.lock().await;
 
+    if revision_id.is_none() {
+        if let Some(entry) = cache.entries.get(&entry_id) {
+            return Ok(entry.clone());
+        }
+    }
+
     let entry = match roblox
-        .get_datastore_entry(universe_id, &datastore_id, &entry_id, None)
+        .get_datastore_entry(
+            universe_id,
+            &datastore_id,
+            &entry_id,
+            revision_id.as_deref(),
+        )
         .await
     {
         Ok(entry) => entry,
@@ -274,7 +358,8 @@ pub fn run() {
             list_datastore_entries,
             get_datastore_entry,
             update_datastore_entry,
-            delete_datastore_entry
+            delete_datastore_entry,
+            list_datastore_entry_revisions
         ])
         .setup(|app| {
             let store = app.store("store.json")?;
@@ -298,6 +383,11 @@ pub fn run() {
                 filter: None,
                 page_entries: HashMap::new(),
                 entries: HashMap::new(),
+            }));
+
+            app.manage(Mutex::new(EntryCache {
+                entry_id: "".into(),
+                page_revisions: HashMap::new(),
             }));
 
             Ok(())
