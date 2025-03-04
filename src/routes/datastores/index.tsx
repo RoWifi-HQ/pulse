@@ -100,6 +100,13 @@ export default function DatastorePage() {
             handleEntryFilter(e.target.value);
           }}
         />
+
+        <Link
+          to={`/universes/${params.universe_id}/datastores/${params.datastore_id}/new`}
+          className="rounded-lg p-1 border border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white"
+        >
+          New Entry
+        </Link>
       </div>
       <DatastoreEntries />
     </div>

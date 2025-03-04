@@ -343,6 +343,37 @@ async fn delete_datastore_entry(
     Ok(())
 }
 
+#[tauri::command(rename_all = "snake_case")]
+async fn create_datastore_entry(
+    roblox: State<'_, RobloxClient>,
+    cache: State<'_, Mutex<DatastoreCache>>,
+    entry_id: String,
+    value: Value,
+    users: Vec<UserId>,
+    attributes: Option<Value>,
+) -> Result<(), Error> {
+    log::trace!("create_datastore_entry");
+
+    let value: Value = serde_json::from_str::<Value>(&value.as_str().unwrap()).unwrap();
+    let mut cache = cache.lock().await;
+    let new_entry = roblox
+        .create_datastore_entry(
+            cache.universe_id,
+            &cache.datastore_id,
+            &entry_id,
+            UpdateDatastoreEntryArgs {
+                value,
+                users,
+                attributes,
+            },
+        )
+        .await?;
+
+    cache.entries.insert(entry_id, new_entry);
+
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -359,7 +390,8 @@ pub fn run() {
             get_datastore_entry,
             update_datastore_entry,
             delete_datastore_entry,
-            list_datastore_entry_revisions
+            list_datastore_entry_revisions,
+            create_datastore_entry
         ])
         .setup(|app| {
             let store = app.store("store.json")?;

@@ -13,6 +13,7 @@ import { GlobalToastRegion } from "./toast";
 import DatastoreEntryPage from "./routes/datastores/entry";
 
 import "./App.css";
+import DatastoreNewPage from "./routes/datastores/new";
 
 declare module "react-aria-components" {
   interface RouterConfig {
@@ -35,6 +36,7 @@ export default function App() {
                 path="entries/:entry_id"
                 element={<DatastoreEntryPage />}
               />
+              <Route path="new" element={<DatastoreNewPage />} />
             </Route>
           </Route>
         </Routes>
