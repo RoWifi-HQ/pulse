@@ -1,545 +1,351 @@
-import { useState } from "react";
-import {
-  Disclosure,
-  Heading,
-  Button,
-  DisclosurePanel,
-  Select,
-  SelectValue,
-  Popover,
-  ListBox,
-  ListBoxItem,
-} from "react-aria-components";
-import { KVJsonValue, JsonType, KVJsonObject } from "../../../types";
+"use client";
+
+import React, { useCallback, useState } from "react";
+import { Heading, Button } from "react-aria-components";
+import * as Select from "@radix-ui/react-select";
+import { type KVJsonValue, JsonType, type KVJsonObject } from "../../../types";
 import { getJSONType } from "../../../utils";
 import { useEntry } from "../context";
 
-export function DatastoreEntryData({
-  key_,
-  value,
-  type,
-}: {
-  key_: string[];
-  value: KVJsonValue;
-  type: JsonType;
-}) {
-  switch (type) {
-    case JsonType.Object: {
-      return (
-        <DatastoreEntryDataMap key_={key_} value={value as KVJsonObject} />
-      );
-    }
-    case JsonType.Array: {
-      return (
-        <DatastoreEntryDataArray key_={key_} value={value as KVJsonObject} />
-      );
-    }
-    default: {
-      return <DatastoreEntryDataPrimitive key_={key_} value={value as any} />;
-    }
-  }
-}
+export const DatastoreEntryData = React.memo(
+  ({
+    path,
+    value,
+    type,
+  }: {
+    path: string[];
+    value: KVJsonValue;
+    type: JsonType;
+  }) => {
+    const [isExpanded, setExpanded] = useState(false);
+    const { entry, setEntry } = useEntry();
 
-export function DatastoreEntryDataMap({
-  key_,
-  value,
-}: {
-  key_: any[];
-  value: KVJsonObject;
-}) {
-  const [isExpanded, setExpanded] = useState(false);
-  const { entry, setEntry } = useEntry();
+    const addObjectItem = useCallback(() => {
+      const updatedEntry = structuredClone(entry);
 
-  function addObjectItem() {
-    const updatedEntry = structuredClone(entry);
-
-    let current = updatedEntry as KVJsonObject;
-    for (let i = 0; i < key_.length; i++) {
-      // @ts-ignore
-      current = current.find((v) => v.key == key_[i])?.value;
-    }
-
-    current.push({
-      key: `field${current.length}`,
-      value: "",
-      type: JsonType.String,
-    });
-    setEntry(updatedEntry);
-  }
-
-  function removeCurrent() {
-    const updatedEntry = structuredClone(entry);
-
-    let current = updatedEntry as KVJsonObject;
-    for (let i = 0; i < key_.length - 1; i++) {
-      // @ts-ignore
-      current = current.find((v) => v.key == key_[i])?.value;
-    }
-
-    const index = current.findIndex((v) => v.key == key_[key_.length - 1]);
-    current.splice(index, 1);
-    setEntry(updatedEntry);
-  }
-
-  function onTypeChange(new_type: JsonType) {
-    const updatedEntry = structuredClone(entry);
-    if (new_type !== getJSONType(value)) {
       let current = updatedEntry as KVJsonObject;
-      for (let i = 0; i < key_.length - 1; i++) {
-        // @ts-ignore
-        current = current.find((v) => v.key == key_[i])?.value;
+      for (let i = 0; i < path.length; i++) {
+        current = current.find((v) => v.key == path[i])?.value as KVJsonObject;
       }
 
-      // @ts-ignore
-      const index = current.findIndex((v) => v.key == key_[key_.length - 1]);
-      switch (new_type) {
-        case JsonType.Array: {
-          // @ts-ignore
-          current[index].value = [];
-          current[index].type = JsonType.Array;
-          break;
-        }
-        case JsonType.Object: {
-          // @ts-ignore
-          current[index].value = [];
-          current[index].type = JsonType.Object;
-          break;
-        }
-        case JsonType.Number: {
-          // @ts-ignore
-          current[index].value = 0;
-          current[index].type = JsonType.Number;
-          break;
-        }
-        case JsonType.String: {
-          // @ts-ignore
-          current[index].value = "";
-          current[index].type = JsonType.String;
-          break;
-        }
-        case JsonType.Boolean: {
-          // @ts-ignore
-          current[index].value = false;
-          current[index].type = JsonType.Boolean;
-          break;
-        }
-      }
+      current.push({
+        key:
+          type === JsonType.Object
+            ? `field${current.length}`
+            : current.length.toString(),
+        value: "",
+        type: JsonType.String,
+      });
       setEntry(updatedEntry);
-    }
-  }
+    }, [path]);
 
-  function onKeyChange(new_key: string) {
-    const updatedEntry = structuredClone(entry);
+    const removeCurrent = useCallback(() => {
+      const updatedEntry = structuredClone(entry);
 
-    let current = updatedEntry as KVJsonObject;
-    for (let i = 0; i < key_.length - 1; i++) {
-      // @ts-ignore
-      current = current.find((v) => v.key == key_[i])?.value;
-    }
-
-    // @ts-ignore
-    const index = current.findIndex((v) => v.key == key_[key_.length - 1]);
-    current[index].key = new_key;
-    setEntry(updatedEntry);
-  }
-
-  return (
-    <Disclosure isExpanded={isExpanded} onExpandedChange={setExpanded}>
-      <Heading className="flex items-center gap-x-2">
-        <Button slot="trigger">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={1.5}
-            stroke="currentColor"
-            className={`size-3 ${isExpanded && "rotate-90"}`}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="m8.25 4.5 7.5 7.5-7.5 7.5"
-            />
-          </svg>
-        </Button>
-        <input
-          type="text"
-          className="bg-neutral-700 focus:outline focus:bg-neutral-800 rounded-lg focus:outline-white w-24"
-          value={key_[key_.length - 1]}
-          onChange={(e) => onKeyChange(e.target.value)}
-        />
-        <DatastoreEntryDataTypeSelect
-          defaultValue={JsonType.Object}
-          onChange={onTypeChange}
-        />
-        <Button className="text-neutral-400" onPress={() => addObjectItem()}>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={1.5}
-            stroke="currentColor"
-            className="size-4"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
-            />
-          </svg>
-        </Button>
-        <Button onPress={() => removeCurrent()} className="flex items-center">
-          <span className="size-4 rounded-full text-red-600 border border-red-600 flex items-center">
-            <div className="w-full h-[2px] bg-red-600 m-1" />
-          </span>
-        </Button>
-      </Heading>
-      <DisclosurePanel className="px-2">
-        {value.map((entry) => (
-          <DatastoreEntryData
-            key_={[...key_, entry.key]}
-            value={entry.value}
-            type={entry.type}
-          />
-        ))}
-      </DisclosurePanel>
-    </Disclosure>
-  );
-}
-
-export function DatastoreEntryDataArray({
-  key_,
-  value,
-}: {
-  key_: any[];
-  value: KVJsonObject;
-}) {
-  const [isExpanded, setExpanded] = useState(false);
-  const { entry, setEntry } = useEntry();
-
-  function addArrayItem() {
-    const updatedEntry = structuredClone(entry);
-
-    let current = updatedEntry as KVJsonObject;
-    for (let i = 0; i < key_.length - 1; i++) {
-      // @ts-ignore
-      current = current.find((v) => v.key == key_[i])?.value;
-    }
-
-    current.push({
-      key: current.length.toString(),
-      value: "",
-      type: JsonType.String,
-    });
-    setEntry(updatedEntry);
-  }
-
-  function removeCurrent() {
-    const updatedEntry = structuredClone(entry);
-
-    let current = updatedEntry as KVJsonObject;
-    for (let i = 0; i < key_.length - 1; i++) {
-      // @ts-ignore
-      current = current.find((v) => v.key == key_[i])?.value;
-    }
-
-    const index = current.findIndex((v) => v.key == key_[key_.length - 1]);
-    current.splice(index, 1);
-    setEntry(updatedEntry);
-  }
-
-  function onTypeChange(new_type: JsonType) {
-    const updatedEntry = structuredClone(entry);
-    if (new_type !== getJSONType(value)) {
       let current = updatedEntry as KVJsonObject;
-      for (let i = 0; i < key_.length - 1; i++) {
-        // @ts-ignore
-        current = current.find((v) => v.key == key_[i])?.value;
+      for (let i = 0; i < path.length - 1; i++) {
+        current = current.find((v) => v.key == path[i])?.value as KVJsonObject;
       }
 
-      // @ts-ignore
-      const index = current.findIndex((v) => v.key == key_[key_.length - 1]);
-      switch (new_type) {
-        case JsonType.Array: {
-          // @ts-ignore
-          current[index].value = [];
-          current[index].type = JsonType.Array;
-          break;
-        }
-        case JsonType.Object: {
-          // @ts-ignore
-          current[index].value = [];
-          current[index].type = JsonType.Object;
-          break;
-        }
-        case JsonType.Number: {
-          // @ts-ignore
-          current[index].value = 0;
-          current[index].type = JsonType.Number;
-          break;
-        }
-        case JsonType.String: {
-          // @ts-ignore
-          current[index].value = "";
-          current[index].type = JsonType.String;
-          break;
-        }
-        case JsonType.Boolean: {
-          // @ts-ignore
-          current[index].value = false;
-          current[index].type = JsonType.Boolean;
-          break;
-        }
-      }
+      const index = current.findIndex((v) => v.key == path[path.length - 1]);
+      current.splice(index, 1);
       setEntry(updatedEntry);
-    }
-  }
+    }, [path]);
 
-  function onKeyChange(new_key: string) {
-    const updatedEntry = structuredClone(entry);
+    const onTypeChange = useCallback(
+      (new_type: JsonType) => {
+        const updatedEntry = structuredClone(entry);
+        if (new_type !== getJSONType(value)) {
+          let current = updatedEntry as KVJsonObject;
+          for (let i = 0; i < path.length - 1; i++) {
+            current = current.find((v) => v.key == path[i])
+              ?.value as KVJsonObject;
+          }
 
-    let current = updatedEntry as KVJsonObject;
-    for (let i = 0; i < key_.length - 1; i++) {
-      // @ts-ignore
-      current = current.find((v) => v.key == key_[i])?.value;
-    }
+          const index = current.findIndex(
+            (v) => v.key == path[path.length - 1]
+          );
+          switch (new_type) {
+            case JsonType.Array: {
+              // @ts-ignore
+              current[index].value = [];
+              current[index].type = JsonType.Array;
+              break;
+            }
+            case JsonType.Object: {
+              // @ts-ignore
+              current[index].value = [];
+              current[index].type = JsonType.Object;
+              break;
+            }
+            case JsonType.Number: {
+              // @ts-ignore
+              current[index].value = 0;
+              current[index].type = JsonType.Number;
+              break;
+            }
+            case JsonType.String: {
+              // @ts-ignore
+              current[index].value = "";
+              current[index].type = JsonType.String;
+              break;
+            }
+            case JsonType.Boolean: {
+              // @ts-ignore
+              current[index].value = false;
+              current[index].type = JsonType.Boolean;
+              break;
+            }
+          }
+          setEntry(updatedEntry);
+        }
+      },
+      [path]
+    );
 
-    // @ts-ignore
-    const index = current.findIndex((v) => v.key == key_[key_.length - 1]);
-    current[index].key = new_key;
-    setEntry(updatedEntry);
-  }
+    const onKeyChange = useCallback(
+      (new_key: string) => {
+        const updatedEntry = structuredClone(entry);
 
-  return (
-    <Disclosure isExpanded={isExpanded} onExpandedChange={setExpanded}>
-      <Heading className="flex items-center gap-x-2">
-        <Button slot="trigger">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={1.5}
-            stroke="currentColor"
-            className={`size-3 ${isExpanded && "rotate-90"}`}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="m8.25 4.5 7.5 7.5-7.5 7.5"
-            />
-          </svg>
-        </Button>
-        <input
-          type="text"
-          className="bg-neutral-700 focus:outline focus:bg-neutral-800 rounded-lg focus:outline-white w-24"
-          value={key_[key_.length - 1]}
-          onChange={(e) => onKeyChange(e.target.value)}
-        />
-        <DatastoreEntryDataTypeSelect
-          defaultValue={JsonType.Array}
-          onChange={onTypeChange}
-        />
-        <Button className="text-neutral-400" onPress={() => addArrayItem()}>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={1.5}
-            stroke="currentColor"
-            className="size-4"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
-            />
-          </svg>
-        </Button>
-        <Button onPress={() => removeCurrent()} className="flex items-center">
-          <span className="size-4 rounded-full text-red-600 border border-red-600 flex items-center">
-            <div className="w-full h-[2px] bg-red-600 m-1" />
-          </span>
-        </Button>
-      </Heading>
-      <DisclosurePanel className="px-2">
-        {value.map((v) => (
-          <DatastoreEntryData
-            key_={[...key_, v.key]}
-            value={v.value}
-            type={v.type}
-          />
-        ))}
-      </DisclosurePanel>
-    </Disclosure>
-  );
-}
+        let current = updatedEntry as KVJsonObject;
+        for (let i = 0; i < path.length - 1; i++) {
+          current = current.find((v) => v.key == path[i])
+            ?.value as KVJsonObject;
+        }
 
-export function DatastoreEntryDataPrimitive({
-  key_,
-  value,
-}: {
-  key_: string[];
-  value: string | boolean | number | null;
-}) {
-  const [isFocused, setFocused] = useState(false);
-  const { entry, setEntry } = useEntry();
+        const index = current.findIndex((v) => v.key == path[path.length - 1]);
+        current[index].key = new_key;
+        setEntry(updatedEntry);
+      },
+      [path]
+    );
 
-  function onValueChange(new_value: any) {
-    if (typeof value === "number") {
-      new_value = parseInt(new_value);
-    }
-    const updatedEntry = structuredClone(entry);
+    const onValueChange = useCallback(
+      (new_value: any) => {
+        if (typeof value === "number") {
+          new_value = Number.parseInt(new_value);
+        }
+        const updatedEntry = structuredClone(entry);
 
-    let current = updatedEntry as KVJsonObject;
-    for (let i = 0; i < key_.length - 1; i++) {
-      // @ts-ignore
-      current = current.find((v) => v.key == key_[i])?.value;
-    }
+        let current = updatedEntry as KVJsonObject;
+        for (let i = 0; i < path.length - 1; i++) {
+          current = current.find((v) => v.key == path[i])
+            ?.value as KVJsonObject;
+        }
 
-    const index = current.findIndex((v) => v.key == key_[key_.length - 1]);
-    current[index].value = new_value;
-    setEntry(updatedEntry);
-  }
+        const index = current.findIndex((v) => v.key == path[path.length - 1]);
+        current[index].value = new_value;
+        setEntry(updatedEntry);
+      },
+      [path]
+    );
 
-  function onKeyChange(new_key: string) {
-    const updatedEntry = structuredClone(entry);
-
-    let current = updatedEntry as KVJsonObject;
-    for (let i = 0; i < key_.length - 1; i++) {
-      // @ts-ignore
-      current = current.find((v) => v.key == key_[i])?.value;
-    }
-
-    // @ts-ignore
-    const index = current.findIndex((v) => v.key == key_[key_.length - 1]);
-    current[index].key = new_key;
-    setEntry(updatedEntry);
-  }
-
-  function removeCurrent() {
-    const updatedEntry = structuredClone(entry);
-
-    let current = updatedEntry as KVJsonObject;
-    for (let i = 0; i < key_.length - 1; i++) {
-      // @ts-ignore
-      current = current.find((v) => v.key == key_[i])?.value;
-    }
-
-    // @ts-ignore
-    const index = current.findIndex((v) => v.key == key_[key_.length - 1]);
-    current.splice(index, 1);
-    setEntry(updatedEntry);
-  }
-
-  function onTypeChange(new_type: JsonType) {
-    const updatedEntry = structuredClone(entry);
-    if (new_type !== getJSONType(value)) {
-      let current = updatedEntry as KVJsonObject;
-      for (let i = 0; i < key_.length - 1; i++) {
-        // @ts-ignore
-        current = current.find((v) => v.key == key_[i])?.value;
+    switch (type) {
+      case JsonType.Object:
+      case JsonType.Array: {
+        return (
+          <div>
+            <Heading className="flex items-center gap-x-3 py-2 group">
+              <Button
+                slot="trigger"
+                onPress={() => setExpanded(!isExpanded)}
+                className="text-neutral-400 hover:text-white transition-colors"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={1.5}
+                  stroke="currentColor"
+                  className={`size-4 transition-transform duration-200 ${
+                    isExpanded ? "rotate-90" : ""
+                  }`}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="m8.25 4.5 7.5 7.5-7.5 7.5"
+                  />
+                </svg>
+              </Button>
+              <input
+                type="text"
+                className="bg-neutral-800/50 border border-neutral-700 focus:border-neutral-500 px-2 py-1 rounded-md focus:outline-none transition-colors"
+                value={path[path.length - 1]}
+                onChange={(e) => onKeyChange(e.target.value)}
+              />
+              <div className="ml-auto flex items-center gap-x-2">
+                <DatastoreEntryDataTypeSelect
+                  defaultValue={type}
+                  onChange={onTypeChange}
+                />
+              </div>
+              <Button
+                className="p-1.5 rounded-md bg-neutral-800/80 hover:bg-emerald-500/20 text-neutral-400 hover:text-emerald-400 transition-all"
+                onPress={() => addObjectItem()}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2}
+                  stroke="currentColor"
+                  className="size-3.5"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 4.5v15m7.5-7.5h-15"
+                  />
+                </svg>
+              </Button>
+              <Button
+                onPress={() => removeCurrent()}
+                className="p-1.5 rounded-md bg-neutral-800/80 hover:bg-red-500/20 text-neutral-400 hover:text-red-400 transition-all"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2}
+                  stroke="currentColor"
+                  className="size-3.5"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M19.5 12h-15"
+                  />
+                </svg>
+              </Button>
+            </Heading>
+            <div
+              className={`pl-4 border-l border-neutral-700 ml-1 mt-1 space-y-1 ${
+                !isExpanded ? "hidden" : ""
+              }`}
+            >
+              {(value as KVJsonObject).map((entry) => (
+                <DatastoreEntryData
+                  path={[...path, entry.key]}
+                  value={entry.value}
+                  type={entry.type}
+                />
+              ))}
+            </div>
+          </div>
+        );
       }
-
-      // @ts-ignore
-      const index = current.findIndex((v) => v.key == key_[key_.length - 1]);
-      switch (new_type) {
-        case JsonType.Array: {
-          // @ts-ignore
-          current[index].value = [];
-          current[index].type = JsonType.Array;
-          break;
-        }
-        case JsonType.Object: {
-          // @ts-ignore
-          current[index].value = [];
-          current[index].type = JsonType.Object;
-          break;
-        }
-        case JsonType.Number: {
-          // @ts-ignore
-          current[index].value = 0;
-          current[index].type = JsonType.Number;
-          break;
-        }
-        case JsonType.String: {
-          // @ts-ignore
-          current[index].value = "";
-          current[index].type = JsonType.String;
-          break;
-        }
-        case JsonType.Boolean: {
-          // @ts-ignore
-          current[index].value = false;
-          current[index].type = JsonType.Boolean;
-          break;
-        }
+      default: {
+        return (
+          <div
+            className="flex items-center gap-x-3 py-1.5 px-1 rounded-md hover:bg-neutral-800/30"
+            tabIndex={-1}
+          >
+            <input
+              type="text"
+              className="bg-neutral-800/50 border border-neutral-700 focus:border-neutral-500 px-2 py-1 rounded-md focus:outline-none transition-colors w-32"
+              value={path[path.length - 1]}
+              onChange={(e) => onKeyChange(e.target.value)}
+            />
+            <span className="text-neutral-400">:</span>
+            <input
+              type={typeof value === "number" ? "number" : "text"}
+              value={value?.toString()}
+              onChange={(e) => onValueChange(e.target.value)}
+              className="bg-neutral-800/50 border border-neutral-700 focus:border-neutral-500 px-2 py-1 rounded-md focus:outline-none transition-colors flex-1 min-w-[120px]"
+            />
+            <DatastoreEntryDataTypeSelect
+              defaultValue={type}
+              onChange={onTypeChange}
+            />
+            <Button
+              onPress={() => removeCurrent()}
+              className="p-1.5 rounded-md bg-neutral-800/80 hover:bg-red-500/20 text-neutral-400 hover:text-red-400 transition-all"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+                stroke="currentColor"
+                className="size-3.5"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M19.5 12h-15"
+                />
+              </svg>
+            </Button>
+          </div>
+        );
       }
-      setEntry(updatedEntry);
     }
   }
+);
 
-  return (
-    <div
-      className="flex items-center gap-x-2 max-w-max"
-      onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}
-      tabIndex={-1}
-    >
-      <input
-        type="text"
-        className="bg-neutral-700 focus:outline focus:bg-neutral-800 rounded-lg focus:outline-white w-24"
-        value={key_[key_.length - 1]}
-        onChange={(e) => onKeyChange(e.target.value)}
-      />
-      :
-      <input
-        type={typeof value === "number" ? "number" : "text"}
-        value={value?.toString()}
-        onChange={(e) => onValueChange(e.target.value)}
-        className="bg-neutral-700 focus:outline focus:bg-neutral-800 rounded-lg focus:outline-white py-[1px] w-16"
-        onFocus={() => setFocused(true)}
-      />
-      {isFocused && (
-        <DatastoreEntryDataTypeSelect
-          defaultValue={getJSONType(value)}
-          onChange={onTypeChange}
-        />
-      )}
-      <Button onPress={() => removeCurrent()} className="flex items-center">
-        <span className="size-4 rounded-full text-red-600 border border-red-600 flex items-center">
-          <div className="w-full h-[2px] bg-red-600 m-1" />
-        </span>
-      </Button>
-    </div>
-  );
-}
+const DatastoreEntryDataTypeSelect = React.memo(
+  ({
+    defaultValue,
+    onChange,
+  }: {
+    defaultValue: JsonType;
+    onChange?: (t: JsonType) => void;
+  }) => {
+    const [selectedValue, setSelectedValue] = React.useState(defaultValue);
 
-export function DatastoreEntryDataTypeSelect({
-  defaultValue,
-  onChange,
-}: {
-  defaultValue: JsonType;
-  onChange?: (t: JsonType) => void;
-}) {
-  return (
-    <Select
-      aria-label="Select"
-      selectedKey={defaultValue}
-      onSelectionChange={(k) => onChange?.(k as JsonType)}
-    >
-      <Button className="bg-neutral-600 rounded-lg">
-        type: <SelectValue />
-      </Button>
+    const handleChange = (value: JsonType) => {
+      setSelectedValue(value);
+      onChange?.(value);
+    };
 
-      <Popover className="w-[--trigger-width]">
-        <ListBox className="list-none max-h-40 rounded-lg overflow-auto z-50 border border-solid border-[#4f5254] bg-[#313335]">
-          <ListBoxItem id={JsonType.Array}>{JsonType.Array}</ListBoxItem>
-          <ListBoxItem id={JsonType.Object}>{JsonType.Object}</ListBoxItem>
-          <ListBoxItem id={JsonType.Number}>{JsonType.Number}</ListBoxItem>
-          <ListBoxItem id={JsonType.Boolean}>{JsonType.Boolean}</ListBoxItem>
-          <ListBoxItem id={JsonType.String}>{JsonType.String}</ListBoxItem>
-        </ListBox>
-      </Popover>
-    </Select>
-  );
-}
+    return (
+      <Select.Root value={selectedValue} onValueChange={handleChange}>
+        <Select.Trigger className="flex h-8 w-28 items-center justify-between whitespace-nowrap rounded-md border border-neutral-700 bg-neutral-800/50 px-2 py-1 text-sm shadow-sm hover:border-neutral-600 focus:border-neutral-500 transition-colors">
+          <span className="text-neutral-400 text-xs mr-1">type:</span>
+          <span className="text-neutral-200">{selectedValue}</span>
+        </Select.Trigger>
+
+        <Select.Portal>
+          <Select.Content
+            className="relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-md border border-neutral-700 bg-neutral-800 text-neutral-200 shadow-md"
+            position="popper"
+          >
+            <Select.Viewport className="p-1">
+              <Select.Item
+                value={JsonType.Array.toString()}
+                className="relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-neutral-700 data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+              >
+                <Select.ItemText>Array</Select.ItemText>
+              </Select.Item>
+              <Select.Item
+                value={JsonType.Object.toString()}
+                className="relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-neutral-700 data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+              >
+                <Select.ItemText>Object</Select.ItemText>
+              </Select.Item>
+              <Select.Item
+                value={JsonType.Number.toString()}
+                className="relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-neutral-700 data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+              >
+                <Select.ItemText>Number</Select.ItemText>
+              </Select.Item>
+              <Select.Item
+                value={JsonType.Boolean.toString()}
+                className="relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-neutral-700 data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+              >
+                <Select.ItemText>Boolean</Select.ItemText>
+              </Select.Item>
+              <Select.Item
+                value={JsonType.String.toString()}
+                className="relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-neutral-700 data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+              >
+                <Select.ItemText>String</Select.ItemText>
+              </Select.Item>
+            </Select.Viewport>
+          </Select.Content>
+        </Select.Portal>
+      </Select.Root>
+    );
+  }
+);

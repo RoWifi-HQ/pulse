@@ -80,13 +80,13 @@ export function DeleteModal({
         <Modal
           isOpen={isOpen}
           onOpenChange={setOpen}
-          className="max-w-screen-lg max-h-[75%] overflow-y-auto scrollbar bg-neutral-800 outline-none p-8 rounded-md"
+          className="max-w-(--breakpoint-lg) max-h-[75%] overflow-y-auto scrollbar bg-neutral-800 outline-hidden p-8 rounded-md"
         >
-          <Dialog className="outline-none flex flex-col items-center">
+          <Dialog className="outline-hidden flex flex-col items-center">
             <Heading slot="title" className="font-bold text-2xl">
               Are you sure you want to delete this entry?
             </Heading>
-            <form action={onSubmit} className="outline-none mt-12 w-full">
+            <form action={onSubmit} className="outline-hidden mt-12 w-full">
               <div className="flex w-full justify-evenly">
                 <Button
                   type="button"
