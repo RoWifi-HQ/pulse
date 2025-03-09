@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useState } from "react";
-import { useParams, Link } from "react-router";
+import { useParams, Link, useNavigate } from "react-router";
 import { toast_queue } from "../../toast";
 import {
   JsonType,
@@ -93,6 +93,7 @@ function EntryForm() {
   const [entryState, setEntryState] = useState(toKVJsonValue({ field1: "" }));
   const [type, setType] = useState(JsonType.Object);
   const [id, setId] = useState("");
+  const navigate = useNavigate();
 
   function onTypeChange(new_type: JsonType) {
     if (new_type !== type) {
@@ -139,7 +140,9 @@ function EntryForm() {
   async function onSubmit() {
     const value = toJsonValue(entryState, JsonType.Object);
     try {
-      await invoke("update_datastore_entry", {
+      await invoke("create_datastore_entry", {
+        universe_id: params.universe_id,
+        datastore_id: params.datastore_id,
         entry_id: id,
         value,
         attributes: {},
@@ -151,8 +154,9 @@ function EntryForm() {
         { timeout: 5000 }
       );
 
-      // Redirect to the datastore page after successful creation
-      window.location.href = `/universes/${params.universe_id}/datastores/${params.datastore_id}`;
+      navigate(
+        `/universes/${params.universe_id}/datastores/${params.datastore_id}`
+      );
     } catch (error) {
       const err = error as TauriError;
       let description = "";
@@ -185,9 +189,7 @@ function EntryForm() {
 
       <div className="border-t border-neutral-700 pt-6 mb-6">
         <div className="flex gap-x-6">
-          <h2 className="text-lg font-semibold mb-4 text-neutral-200">
-            Data
-          </h2>
+          <h2 className="text-lg font-semibold mb-4 text-neutral-200">Data</h2>
           <EntryTypeSelect defaultValue={type} onChange={onTypeChange} />
         </div>
         <div className="bg-neutral-750 rounded-lg p-4">

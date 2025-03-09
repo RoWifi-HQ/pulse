@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Button,
   Disclosure,
@@ -31,17 +31,17 @@ import { DatastoreEntryData, EntryTypeSelect } from "./entry/components";
 async function list_data_entries(
   universe_id: number,
   datastore_id: string,
-  page: number,
+  page_token?: string,
   filter?: string
 ) {
   try {
     const entries = await invoke("list_datastore_entries", {
       universe_id,
       datastore_id,
-      page,
+      page_token,
       filter,
     });
-    return entries as string[];
+    return entries as { data: { id: string }[]; next_page_token?: string };
   } catch (error) {
     return error as TauriError;
   }
@@ -68,6 +68,7 @@ export default function DatastorePage() {
   const params = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const [page, setPage] = useState(1);
+  const [pageToken, setPageToken] = useState<string | undefined>();
 
   const handleEntryFilter = useDebouncedCallback((term: string) => {
     setSearchParams((params) => {
@@ -168,7 +169,12 @@ export default function DatastorePage() {
         </div>
       </div>
 
-      <DatastoreEntries page={page} setPage={setPage} />
+      <DatastoreEntries
+        page={page}
+        setPage={setPage}
+        pageToken={pageToken}
+        setPageToken={setPageToken}
+      />
     </div>
   );
 }
@@ -176,9 +182,13 @@ export default function DatastorePage() {
 function DatastoreEntries({
   page,
   setPage,
+  pageToken,
+  setPageToken,
 }: {
   page: number;
   setPage: (page: number) => void;
+  pageToken?: string;
+  setPageToken: (pageToken?: string) => void;
 }) {
   const params = useParams();
   const [searchParams] = useSearchParams();
@@ -194,7 +204,7 @@ function DatastoreEntries({
       list_data_entries(
         Number.parseInt(params.universe_id!),
         params.datastore_id!,
-        page,
+        pageToken,
         searchParams.get("filter")?.toString()
       ),
     {
@@ -236,14 +246,24 @@ function DatastoreEntries({
     );
   }
 
+  useEffect(() => {
+    if (entries && !isTauriError(entries)) {
+      setPageToken(entries.next_page_token);
+    }
+  }, [entries]);
+
   return (
     <>
       <ScrollArea.Root className="w-full flex-grow">
         <ScrollArea.Viewport className="w-full h-full">
           {entries && (
             <div className="px-6 pb-6 space-y-4">
-              {entries.map((entry) => (
-                <DatastoreEntryCard key={entry} entry_id={entry} page={page} />
+              {entries.data.map((entry) => (
+                <DatastoreEntryCard
+                  key={entry.id}
+                  entry_id={entry.id}
+                  page={page}
+                />
               ))}
             </div>
           )}
@@ -391,7 +411,8 @@ function DatastoreEntryCard({
             </svg>
           </Button>
           <DeleteModal
-            page={page}
+            universe_id={parseInt(params.universe_id!)}
+            datastore_id={params.datastore_id!}
             entry_id={entry_id}
             on_submit={onDelete}
           />
@@ -446,6 +467,7 @@ function DatastoreEntryCardInner({ entry_id }: { entry_id: string }) {
 }
 
 function DatastoreEntryForm({ entry }: { entry: DatastoreEntry }) {
+  const params = useParams();
   const [entryState, setEntryState] = useState(toKVJsonValue(entry.value));
   const [type, setType] = useState(getJSONType(entry));
 
@@ -494,13 +516,15 @@ function DatastoreEntryForm({ entry }: { entry: DatastoreEntry }) {
   async function onSubmit() {
     const value = toJsonValue(entryState, JsonType.Object);
     try {
-      await invoke("update_datastore_entry", {
+      const new_entry = await invoke("update_datastore_entry", {
+        universe_id: params.universe_id,
+        datastore_id: params.datastore_id,
         entry_id: entry.id,
-        value: JSON.stringify(value),
+        value,
         attributes: entry.attributes,
         users: entry.users,
       });
-      mutate(`entries/${entry.id}`);
+      mutate(`entries/${entry.id}`, new_entry);
       toast_queue.add(
         { success: true, description: "Entry Modified" },
         { timeout: 5000 }

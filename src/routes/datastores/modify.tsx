@@ -12,24 +12,27 @@ import { toast_queue } from "../../toast";
 import { TauriError, ErrorKind } from "../../types";
 
 export interface DeleteModalProps {
-  page: number;
+  universe_id: number;
+  datastore_id: string;
   entry_id: string;
   is_disabled?: boolean;
   on_submit?: () => void;
 }
 
 export function DeleteModal({
+  universe_id,
+  datastore_id,
   entry_id,
-  page,
   is_disabled,
-  on_submit
+  on_submit,
 }: DeleteModalProps) {
   const [isOpen, setOpen] = useState(false);
 
   async function onSubmit() {
     try {
       await invoke("delete_datastore_entry", {
-        page,
+        universe_id,
+        datastore_id,
         entry_id,
       });
       setOpen(false);

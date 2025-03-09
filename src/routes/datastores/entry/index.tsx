@@ -52,14 +52,14 @@ async function list_datastore_entry_revisions(
   universe_id: number,
   datastore_id: string,
   entry_id: string,
-  page: number
+  page_token?: string
 ) {
   try {
     const revisions = await invoke("list_datastore_entry_revisions", {
       universe_id,
       datastore_id,
       entry_id,
-      page,
+      page_token,
     });
     return revisions as string[];
   } catch (error) {
@@ -162,8 +162,7 @@ function DatastoreEntryCard({ entry_id }: { entry_id: string }) {
       list_datastore_entry_revisions(
         parseInt(params.universe_id!),
         params.datastore_id!,
-        entry_id,
-        1
+        entry_id
       ),
     {
       revalidateOnFocus: false,
@@ -262,8 +261,9 @@ function DatastoreEntryCard({ entry_id }: { entry_id: string }) {
               </svg>
             </Button>
             <DeleteModal
+              universe_id={parseInt(params.universe_id!)}
+              datastore_id={params.datastore_id!}
               entry_id={entry_id}
-              page={1}
               is_disabled={revision !== "latest"}
               on_submit={() => {
                 navigate(
@@ -305,6 +305,7 @@ function DatastoreEntryCard({ entry_id }: { entry_id: string }) {
 function DatastoreEntryForm({ entry }: { entry: DatastoreEntry }) {
   const [entryState, setEntryState] = useState(toKVJsonValue(entry.value));
   const [type, setType] = useState(getJSONType(entry));
+  const params = useParams();
 
   function onTypeChange(new_type: JsonType) {
     if (new_type !== type) {
@@ -351,13 +352,16 @@ function DatastoreEntryForm({ entry }: { entry: DatastoreEntry }) {
   async function onSubmit() {
     const value = toJsonValue(entryState, JsonType.Object);
     try {
-      await invoke("update_datastore_entry", {
+      const new_entry = await invoke("update_datastore_entry", {
+        universe_id: params.universe_id,
+        datastore_id: params.datastore_id,
         entry_id: entry.id,
         value: JSON.stringify(value),
         attributes: entry.attributes,
         users: entry.users,
       });
-      mutate(`entries/${entry.id}`);
+      mutate(`entries/${entry.id}`, new_entry);
+      mutate(`entries/${entry.id}/revisions`);
       toast_queue.add(
         { success: true, description: "Entry Modified" },
         { timeout: 5000 }
