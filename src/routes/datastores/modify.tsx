@@ -18,6 +18,7 @@ export interface DeleteModalProps {
   datastore_id: string;
   page: number;
   entry_id: string;
+  is_disabled?: boolean;
 }
 
 export function DeleteModal({
@@ -25,6 +26,7 @@ export function DeleteModal({
   datastore_id,
   entry_id,
   page,
+  is_disabled,
 }: DeleteModalProps) {
   const [isOpen, setOpen] = useState(false);
   const { mutate } = useSWRConfig();
@@ -60,7 +62,10 @@ export function DeleteModal({
 
   return (
     <DialogTrigger>
-      <Button className="rounded-xl text-red-500 hover:text-white hover:bg-red-500 border border-red-500 h-8 w-8 p-2">
+      <Button
+        isDisabled={is_disabled}
+        className="rounded-xl text-red-500 hover:text-white hover:bg-red-500 border border-red-500 h-8 w-8 p-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:border-neutral-500 disabled:text-neutral-500 disabled:hover:bg-transparent disabled:hover:text-neutral-500"
+      >
         <svg
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
