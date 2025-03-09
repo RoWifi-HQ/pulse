@@ -10,9 +10,14 @@ import {
   ErrorKind,
   type KVJsonObject,
 } from "../../../types";
-import { toKVJsonValue, toJsonValue, isTauriError } from "../../../utils";
+import {
+  toKVJsonValue,
+  toJsonValue,
+  isTauriError,
+  getJSONType,
+} from "../../../utils";
 import { EntryContext } from "../context";
-import { DatastoreEntryData } from "./components";
+import { DatastoreEntryData, EntryTypeSelect } from "./components";
 import {
   Button,
   ListBox,
@@ -275,6 +280,49 @@ function DatastoreEntryCard({ entry_id }: { entry_id: string }) {
 
 function DatastoreEntryForm({ entry }: { entry: DatastoreEntry }) {
   const [entryState, setEntryState] = useState(toKVJsonValue(entry.value));
+  const [type, setType] = useState(getJSONType(entry));
+
+  function onTypeChange(new_type: JsonType) {
+    if (new_type !== type) {
+      switch (new_type) {
+        case JsonType.Object:
+          setEntryState(toKVJsonValue({ field1: "" }));
+          setType(JsonType.Object);
+          break;
+        case JsonType.Array:
+          setEntryState(toKVJsonValue([""]));
+          setType(JsonType.Array);
+          break;
+        case JsonType.Number:
+          setEntryState(toKVJsonValue(0));
+          setType(JsonType.Number);
+          break;
+        case JsonType.Boolean:
+          setEntryState(toKVJsonValue(false));
+          setType(JsonType.Number);
+          break;
+        case JsonType.String:
+          setEntryState(toKVJsonValue(""));
+          setType(JsonType.String);
+          break;
+      }
+    }
+  }
+
+  function addObjectItem() {
+    const currentEntry = entryState as KVJsonObject;
+    setEntryState([
+      ...currentEntry,
+      {
+        key:
+          type == JsonType.Object
+            ? `field${currentEntry.length}`
+            : `${currentEntry.length}`,
+        value: "",
+        type: JsonType.String,
+      },
+    ]);
+  }
 
   async function onSubmit() {
     const value = toJsonValue(entryState, JsonType.Object);
@@ -311,6 +359,13 @@ function DatastoreEntryForm({ entry }: { entry: DatastoreEntry }) {
       action={onSubmit}
       className="text-sm font-mono bg-neutral-800 rounded-lg p-6 shadow-lg"
     >
+      <div className="py-2 flex items-center gap-x-2">
+        <span className="font-bold">Data</span>
+        <EntryTypeSelect
+          defaultValue={type}
+          onChange={onTypeChange}
+        />
+      </div>
       <EntryContext.Provider
         value={{
           entry: entryState,
@@ -319,14 +374,45 @@ function DatastoreEntryForm({ entry }: { entry: DatastoreEntry }) {
           },
         }}
       >
-        {(entryState as KVJsonObject).map((entry) => (
+        {Array.isArray(entryState) ? (
+          <>
+            {entryState.map((entryField) => (
+              <DatastoreEntryData
+                path={[entryField.key]}
+                value={entryField.value}
+                type={entryField.type}
+              />
+            ))}
+            <div>
+              <Button
+                onPress={() => addObjectItem()}
+                className="bg-blue-600/10 text-blue-500 hover:bg-blue-600 hover:text-white px-3 py-1.5 rounded-md transition-colors duration-200 flex items-center gap-2 text-sm font-medium border border-blue-500/20"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={1.5}
+                  stroke="currentColor"
+                  className="w-4 h-4 relative z-10"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+                  />
+                </svg>
+                Add Field
+              </Button>
+            </div>
+          </>
+        ) : (
           <DatastoreEntryData
-            key={entry.key}
-            path={[entry.key]}
-            value={entry.value}
-            type={entry.type}
+            path={[]}
+            value={entryState}
+            type={type}
           />
-        ))}
+        )}
       </EntryContext.Provider>
     </form>
   );

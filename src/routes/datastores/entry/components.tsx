@@ -1,10 +1,7 @@
-"use client";
-
 import React, { useCallback, useState } from "react";
 import { Heading, Button } from "react-aria-components";
 import * as Select from "@radix-ui/react-select";
 import { type KVJsonValue, JsonType, type KVJsonObject } from "../../../types";
-import { getJSONType } from "../../../utils";
 import { useEntry } from "../context";
 
 export const DatastoreEntryData = React.memo(
@@ -55,7 +52,7 @@ export const DatastoreEntryData = React.memo(
     const onTypeChange = useCallback(
       (new_type: JsonType) => {
         const updatedEntry = structuredClone(entry);
-        if (new_type !== getJSONType(value)) {
+        if (new_type !== type) {
           let current = updatedEntry as KVJsonObject;
           for (let i = 0; i < path.length - 1; i++) {
             current = current.find((v) => v.key == path[i])
@@ -123,19 +120,25 @@ export const DatastoreEntryData = React.memo(
     const onValueChange = useCallback(
       (new_value: any) => {
         if (typeof value === "number") {
-          new_value = Number.parseInt(new_value);
-        }
-        const updatedEntry = structuredClone(entry);
-
-        let current = updatedEntry as KVJsonObject;
-        for (let i = 0; i < path.length - 1; i++) {
-          current = current.find((v) => v.key == path[i])
-            ?.value as KVJsonObject;
+          new_value = parseInt(new_value);
         }
 
-        const index = current.findIndex((v) => v.key == path[path.length - 1]);
-        current[index].value = new_value;
-        setEntry(updatedEntry);
+        if (path.length > 0) {
+          const updatedEntry = structuredClone(entry);
+          let current = updatedEntry as KVJsonObject;
+          for (let i = 0; i < path.length - 1; i++) {
+            current = current.find((v) => v.key == path[i])
+              ?.value as KVJsonObject;
+          }
+
+          const index = current.findIndex(
+            (v) => v.key == path[path.length - 1]
+          );
+          current[index].value = new_value;
+          setEntry(updatedEntry);
+        } else {
+          setEntry(new_value);
+        }
       },
       [path]
     );
@@ -175,10 +178,7 @@ export const DatastoreEntryData = React.memo(
                 onChange={(e) => onKeyChange(e.target.value)}
               />
               <div className="ml-auto flex items-center gap-x-2">
-                <DatastoreEntryDataTypeSelect
-                  defaultValue={type}
-                  onChange={onTypeChange}
-                />
+                <EntryTypeSelect defaultValue={type} onChange={onTypeChange} />
               </div>
               <Button
                 className="p-1.5 rounded-md bg-neutral-800/80 hover:bg-emerald-500/20 text-neutral-400 hover:text-emerald-400 transition-all"
@@ -241,42 +241,50 @@ export const DatastoreEntryData = React.memo(
             className="flex items-center gap-x-3 py-1.5 px-1 rounded-md hover:bg-neutral-800/30"
             tabIndex={-1}
           >
-            <input
-              type="text"
-              className="bg-neutral-800/50 border border-neutral-700 focus:border-neutral-500 px-2 py-1 rounded-md focus:outline-none transition-colors w-32"
-              value={path[path.length - 1]}
-              onChange={(e) => onKeyChange(e.target.value)}
-            />
-            <span className="text-neutral-400">:</span>
-            <input
-              type={typeof value === "number" ? "number" : "text"}
-              value={value?.toString()}
-              onChange={(e) => onValueChange(e.target.value)}
-              className="bg-neutral-800/50 border border-neutral-700 focus:border-neutral-500 px-2 py-1 rounded-md focus:outline-none transition-colors flex-1 min-w-[120px]"
-            />
-            <DatastoreEntryDataTypeSelect
-              defaultValue={type}
-              onChange={onTypeChange}
-            />
-            <Button
-              onPress={() => removeCurrent()}
-              className="p-1.5 rounded-md bg-neutral-800/80 hover:bg-red-500/20 text-neutral-400 hover:text-red-400 transition-all"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={2}
-                stroke="currentColor"
-                className="size-3.5"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M19.5 12h-15"
+            {path.length > 0 ? (
+              <>
+                <input
+                  type="text"
+                  className="bg-neutral-800/50 border border-neutral-700 focus:border-neutral-500 px-2 py-1 rounded-md focus:outline-none transition-colors w-32"
+                  value={path[path.length - 1]}
+                  onChange={(e) => onKeyChange(e.target.value)}
                 />
-              </svg>
-            </Button>
+                <span className="text-neutral-400">:</span>
+                <input
+                  type={typeof value === "number" ? "number" : "text"}
+                  value={value?.toString()}
+                  onChange={(e) => onValueChange(e.target.value)}
+                  className="bg-neutral-800/50 border border-neutral-700 focus:border-neutral-500 px-2 py-1 rounded-md focus:outline-none transition-colors flex-1 min-w-[120px]"
+                />
+                <EntryTypeSelect defaultValue={type} onChange={onTypeChange} />
+                <Button
+                  onPress={() => removeCurrent()}
+                  className="p-1.5 rounded-md bg-neutral-800/80 hover:bg-red-500/20 text-neutral-400 hover:text-red-400 transition-all"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={2}
+                    stroke="currentColor"
+                    className="size-3.5"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M19.5 12h-15"
+                    />
+                  </svg>
+                </Button>
+              </>
+            ) : (
+              <input
+                type={typeof value === "number" ? "number" : "text"}
+                value={value?.toString()}
+                onChange={(e) => onValueChange(e.target.value)}
+                className="bg-neutral-800/50 border border-neutral-700 focus:border-neutral-500 px-2 py-1 rounded-md focus:outline-none transition-colors flex-1 min-w-[120px]"
+              />
+            )}
           </div>
         );
       }
@@ -284,7 +292,7 @@ export const DatastoreEntryData = React.memo(
   }
 );
 
-const DatastoreEntryDataTypeSelect = React.memo(
+export const EntryTypeSelect = React.memo(
   ({
     defaultValue,
     onChange,

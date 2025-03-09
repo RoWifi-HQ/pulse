@@ -9,7 +9,12 @@ import {
 import * as ScrollArea from "@radix-ui/react-scroll-area";
 import { Link, useParams, useSearchParams } from "react-router";
 import useSWR, { mutate } from "swr";
-import { isTauriError, toJsonValue, toKVJsonValue } from "../../utils";
+import {
+  getJSONType,
+  isTauriError,
+  toJsonValue,
+  toKVJsonValue,
+} from "../../utils";
 import {
   type DatastoreEntry,
   type TauriError,
@@ -21,7 +26,7 @@ import { DeleteModal } from "./modify";
 import { EntryContext } from "./context";
 import { useDebouncedCallback } from "use-debounce";
 import { toast_queue } from "../../toast";
-import { DatastoreEntryData } from "./entry/components";
+import { DatastoreEntryData, EntryTypeSelect } from "./entry/components";
 
 async function list_data_entries(
   universe_id: number,
@@ -60,20 +65,20 @@ async function get_datastore_entry(
 }
 
 export default function DatastorePage() {
-  const params = useParams()
-  const [searchParams, setSearchParams] = useSearchParams()
-  const [page, setPage] = useState(1)
+  const params = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [page, setPage] = useState(1);
 
   const handleEntryFilter = useDebouncedCallback((term: string) => {
     setSearchParams((params) => {
       if (term) {
-        params.set("filter", term)
+        params.set("filter", term);
       } else {
-        params.delete("filter")
+        params.delete("filter");
       }
-      return params
-    })
-  }, 300)
+      return params;
+    });
+  }, 300);
 
   return (
     <div className="h-full w-full flex flex-col bg-neutral-900 text-neutral-100">
@@ -89,7 +94,12 @@ export default function DatastorePage() {
             stroke="currentColor"
             className="w-4 h-4 mx-2"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 5l7 7-7 7"
+            />
           </svg>
           <span>{params.universe_id}</span>
           <svg
@@ -99,7 +109,12 @@ export default function DatastorePage() {
             stroke="currentColor"
             className="w-4 h-4 mx-2"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 5l7 7-7 7"
+            />
           </svg>
           <Link
             to={`/universes/${params.universe_id}/datastores/${params.datastore_id}`}
@@ -141,7 +156,12 @@ export default function DatastorePage() {
               stroke="currentColor"
               className="w-4 h-4"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v14m7-7H5" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 5v14m7-7H5"
+              />
             </svg>
             New Entry
           </Link>
@@ -150,34 +170,46 @@ export default function DatastorePage() {
 
       <DatastoreEntries page={page} setPage={setPage} />
     </div>
-  )
+  );
 }
 
-function DatastoreEntries({ page, setPage }: { page: number; setPage: (page: number) => void }) {
-  const params = useParams()
-  const [searchParams] = useSearchParams()
+function DatastoreEntries({
+  page,
+  setPage,
+}: {
+  page: number;
+  setPage: (page: number) => void;
+}) {
+  const params = useParams();
+  const [searchParams] = useSearchParams();
 
   const { data: entries } = useSWR(
-    [params.universe_id, params.datastore_id, page, searchParams.get("filter")?.toString()],
+    [
+      params.universe_id,
+      params.datastore_id,
+      page,
+      searchParams.get("filter")?.toString(),
+    ],
     () =>
       list_data_entries(
         Number.parseInt(params.universe_id!),
         params.datastore_id!,
         page,
-        searchParams.get("filter")?.toString(),
+        searchParams.get("filter")?.toString()
       ),
     {
       revalidateOnFocus: false,
-    },
-  )
+    }
+  );
 
   if (isTauriError(entries)) {
     const errorMessages = {
-      [ErrorKind.Forbidden]: "Oh No! The token does not have access to this datastore.",
+      [ErrorKind.Forbidden]:
+        "Oh No! The token does not have access to this datastore.",
       [ErrorKind.NotFound]: "Oh No! The datastore does not seem to exist.",
       [ErrorKind.RobloxServer]: "Oh No! Something went wrong.",
       [ErrorKind.Unknown]: "Oh No! Something went wrong.",
-    }
+    };
 
     return (
       <div className="flex-grow flex items-center justify-center">
@@ -201,7 +233,7 @@ function DatastoreEntries({ page, setPage }: { page: number; setPage: (page: num
           </p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -230,7 +262,12 @@ function DatastoreEntries({ page, setPage }: { page: number; setPage: (page: num
             onClick={() => setPage(page - 1)}
             className="relative inline-flex items-center px-4 py-2 rounded-l-md border border-neutral-600 bg-neutral-700 text-sm font-medium text-neutral-200 hover:bg-neutral-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5 mr-1"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
               <path
                 fillRule="evenodd"
                 d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
@@ -247,7 +284,12 @@ function DatastoreEntries({ page, setPage }: { page: number; setPage: (page: num
             className="relative inline-flex items-center px-4 py-2 rounded-r-md border border-neutral-600 bg-neutral-700 text-sm font-medium text-neutral-200 hover:bg-neutral-600 transition-colors"
           >
             Next
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-1" viewBox="0 0 20 20" fill="currentColor">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5 ml-1"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
               <path
                 fillRule="evenodd"
                 d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
@@ -258,7 +300,7 @@ function DatastoreEntries({ page, setPage }: { page: number; setPage: (page: num
         </nav>
       </div>
     </>
-  )
+  );
 }
 
 function DatastoreEntryCard({
@@ -386,10 +428,52 @@ function DatastoreEntryCard({
 
 function DatastoreEntryForm({ entry }: { entry: DatastoreEntry }) {
   const [entryState, setEntryState] = useState(toKVJsonValue(entry.value));
+  const [type, setType] = useState(getJSONType(entry));
+
+  function onTypeChange(new_type: JsonType) {
+    if (new_type !== type) {
+      switch (new_type) {
+        case JsonType.Object:
+          setEntryState(toKVJsonValue({ field1: "" }));
+          setType(JsonType.Object);
+          break;
+        case JsonType.Array:
+          setEntryState(toKVJsonValue([""]));
+          setType(JsonType.Array);
+          break;
+        case JsonType.Number:
+          setEntryState(toKVJsonValue(0));
+          setType(JsonType.Number);
+          break;
+        case JsonType.Boolean:
+          setEntryState(toKVJsonValue(false));
+          setType(JsonType.Number);
+          break;
+        case JsonType.String:
+          setEntryState(toKVJsonValue(""));
+          setType(JsonType.String);
+          break;
+      }
+    }
+  }
+
+  function addObjectItem() {
+    const currentEntry = entryState as KVJsonObject;
+    setEntryState([
+      ...currentEntry,
+      {
+        key:
+          type == JsonType.Object
+            ? `field${currentEntry.length}`
+            : `${currentEntry.length}`,
+        value: "",
+        type: JsonType.String,
+      },
+    ]);
+  }
 
   async function onSubmit() {
     const value = toJsonValue(entryState, JsonType.Object);
-    console.log(value);
     try {
       await invoke("update_datastore_entry", {
         entry_id: entry.id,
@@ -421,8 +505,15 @@ function DatastoreEntryForm({ entry }: { entry: DatastoreEntry }) {
     <form
       id={entry.id}
       action={onSubmit}
-      className="text-sm font-mono px-2 pb-2"
+      className="text-sm font-mono px-2 pb-2 flex flex-col"
     >
+      <div className="py-2 flex items-center gap-x-2">
+        <span className="font-bold">Data</span>
+        <EntryTypeSelect
+          defaultValue={type}
+          onChange={onTypeChange}
+        />
+      </div>
       <EntryContext.Provider
         value={{
           entry: entryState,
@@ -431,13 +522,45 @@ function DatastoreEntryForm({ entry }: { entry: DatastoreEntry }) {
           },
         }}
       >
-        {(entryState as KVJsonObject).map((entry) => (
+        {Array.isArray(entryState) ? (
+          <>
+            {entryState.map((entryField) => (
+              <DatastoreEntryData
+                path={[entryField.key]}
+                value={entryField.value}
+                type={entryField.type}
+              />
+            ))}
+            <div>
+          <Button
+            onPress={() => addObjectItem()}
+            className="bg-blue-600/10 text-blue-500 hover:bg-blue-600 hover:text-white px-3 py-1.5 rounded-md transition-colors duration-200 flex items-center gap-2 text-sm font-medium border border-blue-500/20"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.5}
+              stroke="currentColor"
+              className="w-4 h-4 relative z-10"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+              />
+            </svg>
+            Add Field
+          </Button>
+        </div>
+          </>
+        ) : (
           <DatastoreEntryData
-            path={[entry.key]}
-            value={entry.value}
-            type={entry.type}
+            path={[]}
+            value={entryState}
+            type={type}
           />
-        ))}
+        )}
       </EntryContext.Provider>
     </form>
   );
