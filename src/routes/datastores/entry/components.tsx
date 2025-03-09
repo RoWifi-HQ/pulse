@@ -9,10 +9,12 @@ export const DatastoreEntryData = React.memo(
     path,
     value,
     type,
+    isArrayItem
   }: {
     path: string[];
     value: KVJsonValue;
     type: JsonType;
+    isArrayItem?: boolean;
   }) => {
     const [isExpanded, setExpanded] = useState(false);
     const { entry, setEntry } = useEntry();
@@ -175,8 +177,12 @@ export const DatastoreEntryData = React.memo(
                 type="text"
                 className="bg-neutral-800/50 border border-neutral-700 focus:border-neutral-500 px-2 py-1 rounded-md focus:outline-none transition-colors"
                 value={path[path.length - 1]}
+                disabled={isArrayItem}
                 onChange={(e) => onKeyChange(e.target.value)}
               />
+              <span className="text-sm text-neutral-500 italic">{`(${
+                (value as KVJsonObject).length
+              } entries)`}</span>
               <div className="ml-auto flex items-center gap-x-2">
                 <EntryTypeSelect defaultValue={type} onChange={onTypeChange} />
               </div>
@@ -229,6 +235,7 @@ export const DatastoreEntryData = React.memo(
                   path={[...path, entry.key]}
                   value={entry.value}
                   type={entry.type}
+                  isArrayItem={type == JsonType.Array}
                 />
               ))}
             </div>
@@ -247,15 +254,23 @@ export const DatastoreEntryData = React.memo(
                   type="text"
                   className="bg-neutral-800/50 border border-neutral-700 focus:border-neutral-500 px-2 py-1 rounded-md focus:outline-none transition-colors w-32"
                   value={path[path.length - 1]}
+                  disabled={isArrayItem}
                   onChange={(e) => onKeyChange(e.target.value)}
                 />
                 <span className="text-neutral-400">:</span>
-                <input
-                  type={typeof value === "number" ? "number" : "text"}
-                  value={value?.toString()}
-                  onChange={(e) => onValueChange(e.target.value)}
-                  className="bg-neutral-800/50 border border-neutral-700 focus:border-neutral-500 px-2 py-1 rounded-md focus:outline-none transition-colors flex-1 min-w-[120px]"
-                />
+                {type === JsonType.Boolean ? (
+                  <BooleanSelect
+                    value={value as boolean}
+                    onChange={onValueChange}
+                  />
+                ) : (
+                  <input
+                    type={typeof value === "number" ? "number" : "text"}
+                    value={value?.toString()}
+                    onChange={(e) => onValueChange(e.target.value)}
+                    className="bg-neutral-800/50 border border-neutral-700 focus:border-neutral-500 px-2 py-1 rounded-md focus:outline-none transition-colors flex-1 min-w-[120px]"
+                  />
+                )}
                 <EntryTypeSelect defaultValue={type} onChange={onTypeChange} />
                 <Button
                   onPress={() => removeCurrent()}
@@ -349,6 +364,75 @@ export const EntryTypeSelect = React.memo(
                 className="relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-neutral-700 data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
               >
                 <Select.ItemText>String</Select.ItemText>
+              </Select.Item>
+            </Select.Viewport>
+          </Select.Content>
+        </Select.Portal>
+      </Select.Root>
+    );
+  }
+);
+
+const BooleanSelect = React.memo(
+  ({
+    value,
+    onChange,
+  }: {
+    value: boolean;
+    onChange: (value: string) => void;
+  }) => {
+    return (
+      <Select.Root value={value.toString()} onValueChange={onChange}>
+        <Select.Trigger className="flex h-8 items-center justify-between whitespace-nowrap rounded-md border border-neutral-700 bg-neutral-800/50 px-3 py-1 text-sm shadow-sm hover:border-neutral-600 focus:border-neutral-500 transition-colors min-w-[120px] flex-1">
+          <Select.Value />
+        </Select.Trigger>
+
+        <Select.Portal>
+          <Select.Content className="relative z-50 min-w-[8rem] overflow-hidden rounded-md border border-neutral-700 bg-neutral-800 text-neutral-200 shadow-md">
+            <Select.Viewport className="p-1">
+              <Select.Item
+                value="true"
+                className="relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-neutral-700 data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+              >
+                <Select.ItemText>true</Select.ItemText>
+                <Select.ItemIndicator className="absolute left-2 inline-flex items-center justify-center">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    className="w-4 h-4"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                </Select.ItemIndicator>
+              </Select.Item>
+              <Select.Item
+                value="false"
+                className="relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-neutral-700 data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+              >
+                <Select.ItemText>false</Select.ItemText>
+                <Select.ItemIndicator className="absolute left-2 inline-flex items-center justify-center">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    className="w-4 h-4"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                </Select.ItemIndicator>
               </Select.Item>
             </Select.Viewport>
           </Select.Content>
