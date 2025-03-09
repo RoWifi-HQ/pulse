@@ -8,29 +8,23 @@ import {
   Dialog,
   Heading,
 } from "react-aria-components";
-import { useSWRConfig } from "swr";
 import { toast_queue } from "../../toast";
 import { TauriError, ErrorKind } from "../../types";
-import { useSearchParams } from "react-router";
 
 export interface DeleteModalProps {
-  universe_id: string;
-  datastore_id: string;
   page: number;
   entry_id: string;
   is_disabled?: boolean;
+  on_submit?: () => void;
 }
 
 export function DeleteModal({
-  universe_id,
-  datastore_id,
   entry_id,
   page,
   is_disabled,
+  on_submit
 }: DeleteModalProps) {
   const [isOpen, setOpen] = useState(false);
-  const { mutate } = useSWRConfig();
-  const [searchParams] = useSearchParams();
 
   async function onSubmit() {
     try {
@@ -39,12 +33,7 @@ export function DeleteModal({
         entry_id,
       });
       setOpen(false);
-      mutate([
-        universe_id,
-        datastore_id,
-        page,
-        searchParams.get("filter")?.toString(),
-      ]);
+      on_submit?.();
     } catch (error) {
       const err = error as TauriError;
       let description = "";

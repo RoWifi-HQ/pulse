@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useState } from "react";
-import { Link, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import useSWR, { mutate } from "swr";
 import { toast_queue } from "../../../toast";
 import {
@@ -169,6 +169,7 @@ function DatastoreEntryCard({ entry_id }: { entry_id: string }) {
       revalidateOnFocus: false,
     }
   );
+  const navigate = useNavigate();
 
   return (
     <ScrollArea.Root className="w-full flex-grow">
@@ -261,11 +262,14 @@ function DatastoreEntryCard({ entry_id }: { entry_id: string }) {
               </svg>
             </Button>
             <DeleteModal
-              universe_id={params.universe_id!}
-              datastore_id={params.datastore_id!}
               entry_id={entry_id}
               page={1}
               is_disabled={revision !== "latest"}
+              on_submit={() => {
+                navigate(
+                  `/universes/${params.universe_id}/datastores/${params.datastore_id}`
+                );
+              }}
             />
           </div>
         </div>

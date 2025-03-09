@@ -8,7 +8,7 @@ import {
 } from "react-aria-components";
 import * as ScrollArea from "@radix-ui/react-scroll-area";
 import { Link, useParams, useSearchParams } from "react-router";
-import useSWR, { mutate } from "swr";
+import useSWR, { mutate, useSWRConfig } from "swr";
 import {
   getJSONType,
   isTauriError,
@@ -311,19 +311,18 @@ function DatastoreEntryCard({
   page: number;
 }) {
   const params = useParams();
-  const { data: entry } = useSWR(
-    `entries/${entry_id}`,
-    () =>
-      get_datastore_entry(
-        parseInt(params.universe_id!),
-        params.datastore_id!,
-        entry_id
-      ),
-    {
-      revalidateOnFocus: false,
-    }
-  );
   const [isExpanded, setExpanded] = useState(false);
+  const { mutate } = useSWRConfig();
+  const [searchParams] = useSearchParams();
+
+  function onDelete() {
+    mutate([
+      params.universe_id,
+      params.datastore_id,
+      page,
+      searchParams.get("filter")?.toString(),
+    ]);
+  }
 
   return (
     <Disclosure
@@ -392,10 +391,9 @@ function DatastoreEntryCard({
             </svg>
           </Button>
           <DeleteModal
-            universe_id={params.universe_id!}
-            datastore_id={params.datastore_id!}
             page={page}
             entry_id={entry_id}
+            on_submit={onDelete}
           />
           <Link
             to={`/universes/${params.universe_id}/datastores/${params.datastore_id}/entries/${entry_id}`}
@@ -420,9 +418,30 @@ function DatastoreEntryCard({
         </div>
       </Heading>
       <DisclosurePanel className="px-4 pb-4 pt-2">
-        {entry && !isTauriError(entry) && <DatastoreEntryForm entry={entry} />}
+        {isExpanded && <DatastoreEntryCardInner entry_id={entry_id} />}
       </DisclosurePanel>
     </Disclosure>
+  );
+}
+
+function DatastoreEntryCardInner({ entry_id }: { entry_id: string }) {
+  const params = useParams();
+  const { data: entry } = useSWR(
+    `entries/${entry_id}`,
+    () =>
+      get_datastore_entry(
+        parseInt(params.universe_id!),
+        params.datastore_id!,
+        entry_id
+      ),
+    {
+      revalidateOnFocus: false,
+      revalidateOnMount: false,
+    }
+  );
+
+  return (
+    <>{entry && !isTauriError(entry) && <DatastoreEntryForm entry={entry} />}</>
   );
 }
 
@@ -509,10 +528,7 @@ function DatastoreEntryForm({ entry }: { entry: DatastoreEntry }) {
     >
       <div className="py-2 flex items-center gap-x-2">
         <span className="font-bold">Data</span>
-        <EntryTypeSelect
-          defaultValue={type}
-          onChange={onTypeChange}
-        />
+        <EntryTypeSelect defaultValue={type} onChange={onTypeChange} />
       </div>
       <EntryContext.Provider
         value={{
@@ -532,34 +548,30 @@ function DatastoreEntryForm({ entry }: { entry: DatastoreEntry }) {
               />
             ))}
             <div>
-          <Button
-            onPress={() => addObjectItem()}
-            className="bg-blue-600/10 text-blue-500 hover:bg-blue-600 hover:text-white px-3 py-1.5 rounded-md transition-colors duration-200 flex items-center gap-2 text-sm font-medium border border-blue-500/20"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={1.5}
-              stroke="currentColor"
-              className="w-4 h-4 relative z-10"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
-              />
-            </svg>
-            Add Field
-          </Button>
-        </div>
+              <Button
+                onPress={() => addObjectItem()}
+                className="bg-blue-600/10 text-blue-500 hover:bg-blue-600 hover:text-white px-3 py-1.5 rounded-md transition-colors duration-200 flex items-center gap-2 text-sm font-medium border border-blue-500/20"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={1.5}
+                  stroke="currentColor"
+                  className="w-4 h-4 relative z-10"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+                  />
+                </svg>
+                Add Field
+              </Button>
+            </div>
           </>
         ) : (
-          <DatastoreEntryData
-            path={[]}
-            value={entryState}
-            type={type}
-          />
+          <DatastoreEntryData path={[]} value={entryState} type={type} />
         )}
       </EntryContext.Provider>
     </form>
