@@ -1,5 +1,4 @@
 import React, { useCallback, useState } from "react";
-import { Heading, Button } from "react-aria-components";
 import * as Select from "@radix-ui/react-select";
 import { type KVJsonValue, JsonType, type KVJsonObject } from "../../../types";
 import { useEntry } from "../context";
@@ -9,7 +8,7 @@ export const DatastoreEntryData = React.memo(
     path,
     value,
     type,
-    isArrayItem
+    isArrayItem,
   }: {
     path: string[];
     value: KVJsonValue;
@@ -150,10 +149,9 @@ export const DatastoreEntryData = React.memo(
       case JsonType.Array: {
         return (
           <div>
-            <Heading className="flex items-center gap-x-3 py-2 group">
-              <Button
-                slot="trigger"
-                onPress={() => setExpanded(!isExpanded)}
+            <div className="flex items-center gap-x-3 py-2 group">
+              <button
+                onClick={() => setExpanded(!isExpanded)}
                 className="text-neutral-400 hover:text-white transition-colors"
               >
                 <svg
@@ -172,7 +170,7 @@ export const DatastoreEntryData = React.memo(
                     d="m8.25 4.5 7.5 7.5-7.5 7.5"
                   />
                 </svg>
-              </Button>
+              </button>
               <input
                 type="text"
                 className="bg-neutral-800/50 border border-neutral-700 focus:border-neutral-500 px-2 py-1 rounded-md focus:outline-none transition-colors"
@@ -186,9 +184,9 @@ export const DatastoreEntryData = React.memo(
               <div className="ml-auto flex items-center gap-x-2">
                 <EntryTypeSelect defaultValue={type} onChange={onTypeChange} />
               </div>
-              <Button
+              <button
                 className="p-1.5 rounded-md bg-neutral-800/80 hover:bg-emerald-500/20 text-neutral-400 hover:text-emerald-400 transition-all"
-                onPress={() => addObjectItem()}
+                onClick={() => addObjectItem()}
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -204,9 +202,9 @@ export const DatastoreEntryData = React.memo(
                     d="M12 4.5v15m7.5-7.5h-15"
                   />
                 </svg>
-              </Button>
-              <Button
-                onPress={() => removeCurrent()}
+              </button>
+              <button
+                onClick={() => removeCurrent()}
                 className="p-1.5 rounded-md bg-neutral-800/80 hover:bg-red-500/20 text-neutral-400 hover:text-red-400 transition-all"
               >
                 <svg
@@ -223,8 +221,8 @@ export const DatastoreEntryData = React.memo(
                     d="M19.5 12h-15"
                   />
                 </svg>
-              </Button>
-            </Heading>
+              </button>
+            </div>
             <div
               className={`pl-4 border-l border-neutral-700 ml-1 mt-1 space-y-1 ${
                 !isExpanded ? "hidden" : ""
@@ -272,8 +270,8 @@ export const DatastoreEntryData = React.memo(
                   />
                 )}
                 <EntryTypeSelect defaultValue={type} onChange={onTypeChange} />
-                <Button
-                  onPress={() => removeCurrent()}
+                <button
+                  onClick={() => removeCurrent()}
                   className="p-1.5 rounded-md bg-neutral-800/80 hover:bg-red-500/20 text-neutral-400 hover:text-red-400 transition-all"
                 >
                   <svg
@@ -290,7 +288,7 @@ export const DatastoreEntryData = React.memo(
                       d="M19.5 12h-15"
                     />
                   </svg>
-                </Button>
+                </button>
               </>
             ) : (
               <input

@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router";
+import * as Label from "@radix-ui/react-label";
 import { toast_queue } from "../../toast";
 import {
   JsonType,
@@ -11,7 +12,6 @@ import {
 import { toKVJsonValue, toJsonValue } from "../../utils";
 import { EntryContext } from "./context";
 import { DatastoreEntryData, EntryTypeSelect } from "./entry/components";
-import { TextField, Label, Input, Button } from "react-aria-components";
 
 export default function DatastoreNewPage() {
   const params = useParams();
@@ -173,18 +173,22 @@ function EntryForm() {
   return (
     <form action={onSubmit} className="bg-neutral-800 rounded-lg p-6 shadow-lg">
       <div className="mb-6">
-        <TextField
-          name="id"
-          isRequired
-          value={id}
-          onChange={setId}
-          className="flex flex-col gap-2"
-        >
-          <Label className="text-sm font-medium text-neutral-300">
+        <div className="flex flex-col gap-2">
+          <Label.Root
+            htmlFor="entry-id"
+            className="text-sm font-medium text-neutral-300"
+          >
             Entry ID
-          </Label>
-          <Input className="bg-neutral-700 border border-neutral-600 p-2 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
-        </TextField>
+          </Label.Root>
+          <input
+            id="entry-id"
+            name="id"
+            required
+            value={id}
+            onChange={(e) => setId(e.target.value)}
+            className="bg-neutral-700 border border-neutral-600 p-2 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
       </div>
 
       <div className="border-t border-neutral-700 pt-6 mb-6">
@@ -205,14 +209,16 @@ function EntryForm() {
               <>
                 {entryState.map((entryField) => (
                   <DatastoreEntryData
+                    key={entryField.key}
                     path={[entryField.key]}
                     value={entryField.value}
                     type={entryField.type}
                   />
                 ))}
                 <div>
-                  <Button
-                    onPress={() => addObjectItem()}
+                  <button
+                    type="button"
+                    onClick={() => addObjectItem()}
                     className="bg-blue-600/10 text-blue-500 hover:bg-blue-600 hover:text-white px-3 py-1.5 rounded-md transition-colors duration-200 flex items-center gap-2 text-sm font-medium border border-blue-500/20"
                   >
                     <svg
@@ -230,7 +236,7 @@ function EntryForm() {
                       />
                     </svg>
                     Add Field
-                  </Button>
+                  </button>
                 </div>
               </>
             ) : (
@@ -247,12 +253,12 @@ function EntryForm() {
         >
           Cancel
         </Link>
-        <Button
+        <button
           type="submit"
           className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-neutral-800"
         >
           Create Entry
-        </Button>
+        </button>
       </div>
     </form>
   );

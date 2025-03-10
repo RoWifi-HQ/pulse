@@ -1,11 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
-import {
-  Button,
-  Disclosure,
-  DisclosurePanel,
-  Heading,
-} from "react-aria-components";
+import * as Collapsible from "@radix-ui/react-collapsible";
 import * as ScrollArea from "@radix-ui/react-scroll-area";
 import { Link, useParams, useSearchParams } from "react-router";
 import useSWR, { mutate, useSWRConfig } from "swr";
@@ -20,7 +15,7 @@ import {
   type TauriError,
   ErrorKind,
   JsonType,
-  KVJsonObject,
+  type KVJsonObject,
 } from "../../types";
 import { DeleteModal } from "./modify";
 import { EntryContext } from "./context";
@@ -345,38 +340,37 @@ function DatastoreEntryCard({
   }
 
   return (
-    <Disclosure
+    <Collapsible.Root
+      open={isExpanded}
+      onOpenChange={setExpanded}
       className="bg-neutral-800 rounded-xl overflow-hidden shadow-lg w-full border border-neutral-700 transition-all duration-200 hover:border-neutral-600"
-      isExpanded={isExpanded}
-      onExpandedChange={setExpanded}
     >
-      <Heading className="flex items-center gap-x-3 p-4">
-        <Button
-          slot="trigger"
-          className="flex-grow text-left font-medium flex items-center gap-x-3 rounded-lg focus:outline-none group"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={2}
-            stroke="currentColor"
-            className={`size-4 text-neutral-400 transition-transform duration-200 ${
-              isExpanded ? "rotate-90" : ""
-            } group-hover:text-white`}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="m8.25 4.5 7.5 7.5-7.5 7.5"
-            />
-          </svg>
-          <span className="text-lg text-neutral-200 group-hover:text-white transition-colors">
-            {entry_id}
-          </span>
-        </Button>
+      <div className="flex items-center gap-x-3 p-4">
+        <Collapsible.Trigger asChild>
+          <button className="flex-grow text-left font-medium flex items-center gap-x-3 rounded-lg focus:outline-none group">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+              stroke="currentColor"
+              className={`size-4 text-neutral-400 transition-transform duration-200 ${
+                isExpanded ? "rotate-90" : ""
+              } group-hover:text-white`}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="m8.25 4.5 7.5 7.5-7.5 7.5"
+              />
+            </svg>
+            <span className="text-lg text-neutral-200 group-hover:text-white transition-colors">
+              {entry_id}
+            </span>
+          </button>
+        </Collapsible.Trigger>
         <div className="flex items-center gap-x-2">
-          <Button
+          <button
             type="submit"
             form={entry_id}
             className="rounded-lg text-blue-400 hover:text-white hover:bg-blue-500 border border-blue-400 h-8 w-8 p-1.5 transition-colors focus:outline-none"
@@ -409,7 +403,7 @@ function DatastoreEntryCard({
                 strokeLinejoin="round"
               ></path>
             </svg>
-          </Button>
+          </button>
           <DeleteModal
             universe_id={parseInt(params.universe_id!)}
             datastore_id={params.datastore_id!}
@@ -437,11 +431,11 @@ function DatastoreEntryCard({
             </svg>
           </Link>
         </div>
-      </Heading>
-      <DisclosurePanel className="px-4 pb-4 pt-2">
+      </div>
+      <Collapsible.Content className="px-4 pb-4 pt-2">
         {isExpanded && <DatastoreEntryCardInner entry_id={entry_id} />}
-      </DisclosurePanel>
-    </Disclosure>
+      </Collapsible.Content>
+    </Collapsible.Root>
   );
 }
 
@@ -566,14 +560,16 @@ function DatastoreEntryForm({ entry }: { entry: DatastoreEntry }) {
           <>
             {entryState.map((entryField) => (
               <DatastoreEntryData
+                key={entryField.key}
                 path={[entryField.key]}
                 value={entryField.value}
                 type={entryField.type}
               />
             ))}
             <div>
-              <Button
-                onPress={() => addObjectItem()}
+              <button
+                type="button"
+                onClick={() => addObjectItem()}
                 className="bg-blue-600/10 text-blue-500 hover:bg-blue-600 hover:text-white px-3 py-1.5 rounded-md transition-colors duration-200 flex items-center gap-2 text-sm font-medium border border-blue-500/20"
               >
                 <svg
@@ -591,7 +587,7 @@ function DatastoreEntryForm({ entry }: { entry: DatastoreEntry }) {
                   />
                 </svg>
                 Add Field
-              </Button>
+              </button>
             </div>
           </>
         ) : (

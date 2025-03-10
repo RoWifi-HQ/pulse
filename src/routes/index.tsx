@@ -1,21 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useState } from "react";
-import {
-  Button,
-  Dialog,
-  DialogTrigger,
-  Disclosure,
-  DisclosurePanel,
-  Heading,
-  Input,
-  Label,
-  Modal,
-  ModalOverlay,
-  TextField,
-} from "react-aria-components";
 import { Link } from "react-router";
 import useSWR, { mutate, useSWRConfig } from "swr";
 import type { StoredUniverse, Datastore } from "../types";
+import * as Dialog from "@radix-ui/react-dialog";
+import * as Collapsible from "@radix-ui/react-collapsible";
+import * as Label from "@radix-ui/react-label";
 
 type InitInfo = {
   token: boolean;
@@ -89,27 +79,31 @@ function TokenSection({ token }: { token?: boolean }) {
       <div className="bg-neutral-700/50 p-4 rounded-lg border border-neutral-700">
         {formOpen ? (
           <form action={onSubmit} className="flex w-full items-center gap-3">
-            <TextField
-              aria-label="API Token"
-              name="token"
-              isRequired
-              className="w-full"
-            >
-              <Input className="w-full bg-neutral-800 border border-neutral-600 p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
-            </TextField>
+            <div className="w-full">
+              <Label.Root htmlFor="token" className="sr-only">
+                API Token
+              </Label.Root>
+              <input
+                id="token"
+                name="token"
+                required
+                className="w-full bg-neutral-800 border border-neutral-600 p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
             <div className="flex gap-2">
-              <Button
-                onPress={() => setFormOpen(false)}
+              <button
+                type="button"
+                onClick={() => setFormOpen(false)}
                 className="bg-neutral-700 hover:bg-neutral-600 px-4 py-2 rounded-md transition-colors duration-200 text-sm"
               >
                 Cancel
-              </Button>
-              <Button
+              </button>
+              <button
                 type="submit"
                 className="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-md transition-colors duration-200 text-sm font-medium"
               >
                 Save
-              </Button>
+              </button>
             </div>
           </form>
         ) : (
@@ -124,8 +118,8 @@ function TokenSection({ token }: { token?: boolean }) {
                 </span>
               )}
             </div>
-            <Button
-              onPress={() => setFormOpen(true)}
+            <button
+              onClick={() => setFormOpen(true)}
               className="bg-blue-600/10 text-blue-500 hover:bg-blue-600 hover:text-white px-3 py-1.5 rounded-md transition-colors duration-200 flex items-center gap-2 text-sm font-medium border border-blue-500/20"
             >
               <svg
@@ -143,7 +137,7 @@ function TokenSection({ token }: { token?: boolean }) {
                 />
               </svg>
               Edit Token
-            </Button>
+            </button>
           </div>
         )}
       </div>
@@ -228,16 +222,13 @@ function UniverseCard({ universe }: { universe: StoredUniverse }) {
   );
 
   return (
-    <Disclosure
+    <Collapsible.Root
+      open={isExpanded}
+      onOpenChange={setIsExpanded}
       className="bg-neutral-700 rounded-lg overflow-hidden shadow-md border border-neutral-600/50 hover:border-neutral-500/50 transition-colors"
-      isExpanded={isExpanded}
-      onExpandedChange={setIsExpanded}
     >
-      <Heading>
-        <Button
-          slot="trigger"
-          className="w-full p-4 text-left font-medium flex justify-between items-center transition-colors duration-200 rounded-lg focus:outline-none group"
-        >
+      <Collapsible.Trigger asChild>
+        <button className="w-full p-4 text-left font-medium flex justify-between items-center transition-colors duration-200 rounded-lg focus:outline-none group">
           <div className="flex items-center gap-3">
             <span className="text-neutral-200">{universe.name}</span>
             <span className="text-xs text-neutral-400">ID: {universe.id}</span>
@@ -258,9 +249,9 @@ function UniverseCard({ universe }: { universe: StoredUniverse }) {
               d="M19 9l-7 7-7-7"
             />
           </svg>
-        </Button>
-      </Heading>
-      <DisclosurePanel className="px-4 pb-4">
+        </button>
+      </Collapsible.Trigger>
+      <Collapsible.Content className="px-4 pb-4">
         <div className="pt-2 pb-3 text-sm text-neutral-400 flex items-center justify-between">
           <span>Datastores</span>
           <span className="bg-neutral-600/50 px-2 py-0.5 rounded-full text-xs">
@@ -298,8 +289,8 @@ function UniverseCard({ universe }: { universe: StoredUniverse }) {
             ))}
           </div>
         )}
-      </DisclosurePanel>
-    </Disclosure>
+      </Collapsible.Content>
+    </Collapsible.Root>
   );
 }
 
@@ -317,65 +308,70 @@ function AddUniverse() {
   }
 
   return (
-    <DialogTrigger isOpen={isOpen} onOpenChange={setOpen}>
-      <Button className="bg-blue-600/10 text-blue-500 hover:bg-blue-600 hover:text-white px-3 py-1.5 rounded-md transition-colors duration-200 flex items-center gap-2 text-sm font-medium border border-blue-500/20">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          strokeWidth={1.5}
-          stroke="currentColor"
-          className="w-4 h-4 relative z-10"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
-          />
-        </svg>
-        Add Universe
-      </Button>
-      <ModalOverlay className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <Modal className="bg-neutral-800 rounded-xl shadow-xl max-w-md w-full overflow-hidden">
-          <Dialog className="outline-none">
-            <div className="p-6 border-b border-neutral-700">
-              <Heading slot="title" className="font-bold text-xl text-white">
-                Add Universe
-              </Heading>
-              <p className="text-neutral-400 text-sm mt-1">
-                Enter the Universe ID to add it to your dashboard
-              </p>
-            </div>
-            <form action={onSubmit} className="p-6">
-              <TextField
-                name="universe"
-                isRequired
-                className="flex flex-col gap-2"
+    <Dialog.Root open={isOpen} onOpenChange={setOpen}>
+      <Dialog.Trigger asChild>
+        <button className="bg-blue-600/10 text-blue-500 hover:bg-blue-600 hover:text-white px-3 py-1.5 rounded-md transition-colors duration-200 flex items-center gap-2 text-sm font-medium border border-blue-500/20">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={1.5}
+            stroke="currentColor"
+            className="w-4 h-4 relative z-10"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+            />
+          </svg>
+          Add Universe
+        </button>
+      </Dialog.Trigger>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50" />
+        <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-neutral-800 rounded-xl shadow-xl max-w-md w-full overflow-hidden z-50 p-0">
+          <div className="p-6 border-b border-neutral-700">
+            <Dialog.Title className="font-bold text-xl text-white">
+              Add Universe
+            </Dialog.Title>
+            <Dialog.Description className="text-neutral-400 text-sm mt-1">
+              Enter the Universe ID to add it to your dashboard
+            </Dialog.Description>
+          </div>
+          <form action={onSubmit} className="p-6">
+            <div className="flex flex-col gap-2">
+              <Label.Root
+                htmlFor="universe"
+                className="text-sm font-medium text-neutral-300"
               >
-                <Label className="text-sm font-medium text-neutral-300">
-                  Universe ID
-                </Label>
-                <Input className="bg-neutral-700 border border-neutral-600 p-2 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
-              </TextField>
-              <div className="flex justify-end gap-3 mt-6">
-                <Button
-                  type="button"
-                  onPress={() => setOpen(false)}
-                  className="px-4 py-2 border border-neutral-600 text-neutral-300 hover:bg-neutral-700 rounded-md transition-colors"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md transition-colors"
-                >
-                  Add Universe
-                </Button>
-              </div>
-            </form>
-          </Dialog>
-        </Modal>
-      </ModalOverlay>
-    </DialogTrigger>
+                Universe ID
+              </Label.Root>
+              <input
+                id="universe"
+                name="universe"
+                required
+                className="bg-neutral-700 border border-neutral-600 p-2 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="px-4 py-2 border border-neutral-600 text-neutral-300 hover:bg-neutral-700 rounded-md transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md transition-colors"
+              >
+                Add Universe
+              </button>
+            </div>
+          </form>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }

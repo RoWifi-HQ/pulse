@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import useSWR, { mutate } from "swr";
+import * as Select from "@radix-ui/react-select";
 import { toast_queue } from "../../../toast";
 import {
   type DatastoreEntry,
@@ -18,14 +19,6 @@ import {
 } from "../../../utils";
 import { EntryContext } from "../context";
 import { DatastoreEntryData, EntryTypeSelect } from "./components";
-import {
-  Button,
-  ListBox,
-  ListBoxItem,
-  Popover,
-  Select,
-  SelectValue,
-} from "react-aria-components";
 import * as ScrollArea from "@radix-ui/react-scroll-area";
 import { DeleteModal } from "../modify";
 
@@ -177,57 +170,86 @@ function DatastoreEntryCard({ entry_id }: { entry_id: string }) {
           {!isTauriError(revisions) && (
             <div className="flex items-center gap-4">
               <span className="text-sm text-neutral-400">Revision:</span>
-              <Select
-                selectedKey={revision}
-                onSelectionChange={(k) => setRevision(k as string)}
-                aria-label="revision"
-                placeholder="latest"
-              >
-                <Button className="w-64 h-9 rounded-lg border border-neutral-700 bg-neutral-800 px-3 flex items-center justify-between text-neutral-200 hover:border-neutral-600 transition-colors overflow-hidden">
-                  <SelectValue />
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    className="w-4 h-4 ml-2 text-neutral-400"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </Button>
-                <Popover className="w-(--trigger-width) text-sm">
-                  <ListBox className="list-none flex flex-col max-h-60 rounded-lg overflow-auto z-50 border border-neutral-700 bg-neutral-800 shadow-lg">
-                    <ListBoxItem
-                      className="px-3 py-2 text-neutral-200 outline-none focus:bg-neutral-700 hover:bg-neutral-700 transition-colors duration-200 cursor-pointer"
-                      id="latest"
+              <Select.Root value={revision} onValueChange={setRevision}>
+                <Select.Trigger className="w-64 h-9 rounded-lg border border-neutral-700 bg-neutral-800 px-3 flex items-center justify-between text-neutral-200 hover:border-neutral-600 transition-colors overflow-hidden">
+                  <Select.Value placeholder="latest" />
+                  <Select.Icon>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      className="w-4 h-4 ml-2 text-neutral-400"
                     >
-                      Latest
-                    </ListBoxItem>
-                    {(revisions ?? []).map((r) => {
-                      return (
-                        <ListBoxItem
-                          className="px-3 py-2 text-neutral-200 outline-none focus:bg-neutral-700 hover:bg-neutral-700 transition-colors duration-200 cursor-pointer"
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </Select.Icon>
+                </Select.Trigger>
+                <Select.Portal>
+                  <Select.Content className="overflow-hidden z-50 border border-neutral-700 bg-neutral-800 shadow-lg rounded-lg">
+                    <Select.Viewport className="p-1">
+                      <Select.Item
+                        value="latest"
+                        className="px-3 py-2 text-neutral-200 outline-none data-[highlighted]:bg-neutral-700 data-[highlighted]:text-white rounded-md transition-colors duration-200 cursor-pointer flex items-center"
+                      >
+                        <Select.ItemText>Latest</Select.ItemText>
+                        <Select.ItemIndicator className="absolute right-2">
+                          <svg
+                            width="15"
+                            height="15"
+                            viewBox="0 0 15 15"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              d="M11.4669 3.72684C11.7558 3.91574 11.8369 4.30308 11.648 4.59198L7.39799 11.092C7.29783 11.2452 7.13556 11.3467 6.95402 11.3699C6.77247 11.3931 6.58989 11.3355 6.45446 11.2124L3.70446 8.71241C3.44905 8.48022 3.43023 8.08494 3.66242 7.82953C3.89461 7.57412 4.28989 7.55529 4.5453 7.78749L6.75292 9.79441L10.6018 3.90792C10.7907 3.61902 11.178 3.53795 11.4669 3.72684Z"
+                              fill="currentColor"
+                              fillRule="evenodd"
+                              clipRule="evenodd"
+                            ></path>
+                          </svg>
+                        </Select.ItemIndicator>
+                      </Select.Item>
+                      {(revisions ?? []).map((r) => (
+                        <Select.Item
                           key={r}
-                          id={r}
+                          value={r}
+                          className="px-3 py-2 text-neutral-200 outline-none data-[highlighted]:bg-neutral-700 data-[highlighted]:text-white rounded-md transition-colors duration-200 cursor-pointer flex items-center"
                         >
-                          {r}
-                        </ListBoxItem>
-                      );
-                    })}
-                  </ListBox>
-                </Popover>
-              </Select>
+                          <Select.ItemText>{r}</Select.ItemText>
+                          <Select.ItemIndicator className="absolute right-2">
+                            <svg
+                              width="15"
+                              height="15"
+                              viewBox="0 0 15 15"
+                              fill="none"
+                              xmlns="http://www.w3.org/2000/svg"
+                            >
+                              <path
+                                d="M11.4669 3.72684C11.7558 3.91574 11.8369 4.30308 11.648 4.59198L7.39799 11.092C7.29783 11.2452 7.13556 11.3467 6.95402 11.3699C6.77247 11.3931 6.58989 11.3355 6.45446 11.2124L3.70446 8.71241C3.44905 8.48022 3.43023 8.08494 3.66242 7.82953C3.89461 7.57412 4.28989 7.55529 4.5453 7.78749L6.75292 9.79441L10.6018 3.90792C10.7907 3.61902 11.178 3.53795 11.4669 3.72684Z"
+                                fill="currentColor"
+                                fillRule="evenodd"
+                                clipRule="evenodd"
+                              ></path>
+                            </svg>
+                          </Select.ItemIndicator>
+                        </Select.Item>
+                      ))}
+                    </Select.Viewport>
+                  </Select.Content>
+                </Select.Portal>
+              </Select.Root>
             </div>
           )}
           <div className="flex items-center gap-2 ml-4">
-            <Button
+            <button
               type="submit"
-              isDisabled={revision !== "latest"}
+              disabled={revision !== "latest"}
               form={entry_id}
               className="rounded-lg text-blue-400 hover:text-white hover:bg-blue-500 border border-blue-400 h-9 w-9 p-1.5 transition-colors focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed disabled:border-neutral-500 disabled:text-neutral-500 disabled:hover:bg-transparent disabled:hover:text-neutral-500"
             >
@@ -259,9 +281,9 @@ function DatastoreEntryCard({ entry_id }: { entry_id: string }) {
                   strokeLinejoin="round"
                 ></path>
               </svg>
-            </Button>
+            </button>
             <DeleteModal
-              universe_id={parseInt(params.universe_id!)}
+              universe_id={Number.parseInt(params.universe_id!)}
               datastore_id={params.datastore_id!}
               entry_id={entry_id}
               is_disabled={revision !== "latest"}
@@ -403,14 +425,16 @@ function DatastoreEntryForm({ entry }: { entry: DatastoreEntry }) {
           <>
             {entryState.map((entryField) => (
               <DatastoreEntryData
+                key={entryField.key}
                 path={[entryField.key]}
                 value={entryField.value}
                 type={entryField.type}
               />
             ))}
             <div>
-              <Button
-                onPress={() => addObjectItem()}
+              <button
+                type="button"
+                onClick={() => addObjectItem()}
                 className="bg-blue-600/10 text-blue-500 hover:bg-blue-600 hover:text-white px-3 py-1.5 rounded-md transition-colors duration-200 flex items-center gap-2 text-sm font-medium border border-blue-500/20"
               >
                 <svg
@@ -428,7 +452,7 @@ function DatastoreEntryForm({ entry }: { entry: DatastoreEntry }) {
                   />
                 </svg>
                 Add Field
-              </Button>
+              </button>
             </div>
           </>
         ) : (
