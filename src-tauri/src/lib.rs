@@ -11,6 +11,7 @@ use rowifi_roblox_models::{
 use serde::Serialize;
 use serde_json::Value;
 use tauri::{AppHandle, Manager, State};
+use tauri_plugin_log::{Target, TargetKind};
 use tauri_plugin_store::StoreExt;
 use tokio::sync::Mutex;
 
@@ -275,7 +276,14 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_store::Builder::new().build())
-        .plugin(tauri_plugin_log::Builder::new().build())
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .target(Target::new(TargetKind::LogDir {
+                    file_name: Some("logs".to_string()),
+                }))
+                .max_file_size(5000000)
+                .build(),
+        )
         .invoke_handler(tauri::generate_handler![
             set_token,
             get_universes,
