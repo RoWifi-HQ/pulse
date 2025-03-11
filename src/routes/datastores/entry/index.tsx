@@ -317,6 +317,34 @@ function DatastoreEntryCard({ entry_id }: { entry_id: string }) {
             />
           </div>
         </div>
+
+        {isTauriError(revisions) && (
+          <div className="bg-amber-500/10 px-6 py-3 mx-6 my-4 rounded-md">
+            <div className="flex items-start">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                className="w-5 h-5 text-amber-500 mt-0.5 mr-3 flex-shrink-0"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                />
+              </svg>
+              <div>
+                <p className="text-amber-200 font-medium">Warning</p>
+                <p className="text-amber-100/80 text-sm mt-1">
+                  The token does not have permissions to list or view revisions.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="flex-grow overflow-auto p-6">
           {entry && !isTauriError(entry) ? (
             <DatastoreEntryForm entry={entry} />
@@ -348,7 +376,7 @@ function DatastoreEntryCard({ entry_id }: { entry_id: string }) {
 
 function DatastoreEntryForm({ entry }: { entry: DatastoreEntry }) {
   const [entryState, setEntryState] = useState(toKVJsonValue(entry.value));
-  const [type, setType] = useState(getJSONType(entry));
+  const [type, setType] = useState(getJSONType(entry.value));
   const params = useParams();
 
   function onTypeChange(new_type: JsonType) {
