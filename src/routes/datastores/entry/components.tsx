@@ -151,6 +151,7 @@ export const DatastoreEntryData = React.memo(
           <div>
             <div className="flex items-center gap-x-3 py-2 group">
               <button
+                type="button"
                 onClick={() => setExpanded(!isExpanded)}
                 className="text-neutral-400 hover:text-white transition-colors"
               >
@@ -185,6 +186,7 @@ export const DatastoreEntryData = React.memo(
                 <EntryTypeSelect defaultValue={type} onChange={onTypeChange} />
               </div>
               <button
+                type="button"
                 className="p-1.5 rounded-md bg-neutral-800/80 hover:bg-emerald-500/20 text-neutral-400 hover:text-emerald-400 transition-all"
                 onClick={() => addObjectItem()}
               >
@@ -204,6 +206,7 @@ export const DatastoreEntryData = React.memo(
                 </svg>
               </button>
               <button
+                type="button"
                 onClick={() => removeCurrent()}
                 className="p-1.5 rounded-md bg-neutral-800/80 hover:bg-red-500/20 text-neutral-400 hover:text-red-400 transition-all"
               >
@@ -271,6 +274,7 @@ export const DatastoreEntryData = React.memo(
                 )}
                 <EntryTypeSelect defaultValue={type} onChange={onTypeChange} />
                 <button
+                  type="button"
                   onClick={() => removeCurrent()}
                   className="p-1.5 rounded-md bg-neutral-800/80 hover:bg-red-500/20 text-neutral-400 hover:text-red-400 transition-all"
                 >

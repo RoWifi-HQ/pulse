@@ -371,6 +371,25 @@ function DatastoreEntryCard({
         </Collapsible.Trigger>
         <div className="flex items-center gap-x-2">
           <button
+            onClick={() => mutate(`entries/${entry_id}`)}
+            className="rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-400 border border-neutral-400 h-8 w-8 p-1.5 transition-colors focus:outline-none"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.5}
+              stroke="currentColor"
+              className="size-full"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"
+              />
+            </svg>
+          </button>
+          <button
             type="submit"
             form={entry_id}
             className="rounded-lg text-blue-400 hover:text-white hover:bg-blue-500 border border-blue-400 h-8 w-8 p-1.5 transition-colors focus:outline-none"
@@ -451,7 +470,7 @@ function DatastoreEntryCardInner({ entry_id }: { entry_id: string }) {
       ),
     {
       revalidateOnFocus: false,
-      revalidateOnMount: false,
+      revalidateIfStale: false,
     }
   );
 
@@ -547,6 +566,13 @@ function DatastoreEntryForm({ entry }: { entry: DatastoreEntry }) {
       <div className="py-2 flex items-center gap-x-2">
         <span className="font-bold">Data</span>
         <EntryTypeSelect defaultValue={type} onChange={onTypeChange} />
+        <button
+          type="button"
+          onClick={() => setEntryState(toKVJsonValue(entry.value))}
+          className="bg-blue-600/10 text-blue-500 hover:bg-blue-600 hover:text-white px-3 py-1.5 rounded-md transition-colors duration-200 flex items-center gap-2 text-sm font-medium border border-blue-500/20"
+        >
+          Reset
+        </button>
       </div>
       <EntryContext.Provider
         value={{

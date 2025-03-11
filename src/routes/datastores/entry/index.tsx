@@ -54,7 +54,10 @@ async function list_datastore_entry_revisions(
       entry_id,
       page_token,
     });
-    return revisions as string[];
+    return revisions as {
+      data: { revisionId: string }[];
+      next_page_token?: string;
+    };
   } catch (error) {
     return error as TauriError;
   }
@@ -215,13 +218,13 @@ function DatastoreEntryCard({ entry_id }: { entry_id: string }) {
                           </svg>
                         </Select.ItemIndicator>
                       </Select.Item>
-                      {(revisions ?? []).map((r) => (
+                      {(revisions?.data ?? []).map((r) => (
                         <Select.Item
-                          key={r}
-                          value={r}
+                          key={r.revisionId}
+                          value={r.revisionId}
                           className="px-3 py-2 text-neutral-200 outline-none data-[highlighted]:bg-neutral-700 data-[highlighted]:text-white rounded-md transition-colors duration-200 cursor-pointer flex items-center"
                         >
-                          <Select.ItemText>{r}</Select.ItemText>
+                          <Select.ItemText>{r.revisionId}</Select.ItemText>
                           <Select.ItemIndicator className="absolute right-2">
                             <svg
                               width="15"
@@ -247,6 +250,25 @@ function DatastoreEntryCard({ entry_id }: { entry_id: string }) {
             </div>
           )}
           <div className="flex items-center gap-2 ml-4">
+            <button
+              onClick={() => mutate(`entries/${entry_id}/revision/${revision}`)}
+              className="rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-400 border border-neutral-400 h-8 w-8 p-1.5 transition-colors focus:outline-none"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
+                className="size-full"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"
+                />
+              </svg>
+            </button>
             <button
               type="submit"
               disabled={revision !== "latest"}
@@ -412,6 +434,13 @@ function DatastoreEntryForm({ entry }: { entry: DatastoreEntry }) {
       <div className="py-2 flex items-center gap-x-2">
         <span className="font-bold">Data</span>
         <EntryTypeSelect defaultValue={type} onChange={onTypeChange} />
+        <button
+          type="button"
+          onClick={() => setEntryState(toKVJsonValue(entry.value))}
+          className="bg-blue-600/10 text-blue-500 hover:bg-blue-600 hover:text-white px-3 py-1.5 rounded-md transition-colors duration-200 flex items-center gap-2 text-sm font-medium border border-blue-500/20"
+        >
+          Reset
+        </button>
       </div>
       <EntryContext.Provider
         value={{
