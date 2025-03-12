@@ -347,7 +347,27 @@ function DatastoreEntryCard({ entry_id }: { entry_id: string }) {
 
         <div className="flex-grow overflow-auto p-6">
           {entry && !isTauriError(entry) ? (
-            <DatastoreEntryForm entry={entry} />
+            <>
+              <div className="grid grid-cols-2 gap-2 mb-8">
+                <div className="flex flex-col gap-y-2">
+                  <span className="font-bold">Id</span>
+                  <span>{entry.id}</span>
+                </div>
+                <div className="flex flex-col gap-y-2">
+                  <span className="font-bold">Create Time</span>
+                  <span>{new Date(entry.createTime).toString()}</span>
+                </div>
+                <div className="flex flex-col gap-y-2">
+                  <span className="font-bold">Revision Id</span>
+                  <span>{entry.revisionId}</span>
+                </div>
+                <div className="flex flex-col gap-y-2">
+                  <span className="font-bold">Revision Create Time</span>
+                  <span>{new Date(entry.revisionCreateTime).toString()}</span>
+                </div>
+              </div>
+              <DatastoreEntryForm entry={entry} />
+            </>
           ) : (
             <div className="flex items-center justify-center h-full">
               <div className="animate-pulse flex space-x-4">
@@ -378,6 +398,8 @@ function DatastoreEntryForm({ entry }: { entry: DatastoreEntry }) {
   const [entryState, setEntryState] = useState(toKVJsonValue(entry.value));
   const [type, setType] = useState(getJSONType(entry.value));
   const params = useParams();
+  const [users, setUsers] = useState(structuredClone(entry.users));
+  const [attributes, setAttributes] = useState(toKVJsonValue(entry.attributes));
 
   function onTypeChange(new_type: JsonType) {
     if (new_type !== type) {
@@ -421,16 +443,27 @@ function DatastoreEntryForm({ entry }: { entry: DatastoreEntry }) {
     ]);
   }
 
+  function addAttributeItem() {
+    const currentAttributes = attributes as KVJsonObject;
+    setAttributes([
+      ...currentAttributes,
+      {
+        key: `field${currentAttributes.length}`,
+        value: "",
+        type: JsonType.String,
+      },
+    ]);
+  }
+
   async function onSubmit() {
-    const value = toJsonValue(entryState, JsonType.Object);
     try {
       const new_entry = await invoke("update_datastore_entry", {
         universe_id: params.universe_id,
         datastore_id: params.datastore_id,
         entry_id: entry.id,
-        value: JSON.stringify(value),
-        attributes: entry.attributes,
-        users: entry.users,
+        value: toJsonValue(entryState, type),
+        attributes: toJsonValue(attributes, JsonType.Object),
+        users,
       });
       mutate(`entries/${entry.id}`, new_entry);
       mutate(`entries/${entry.id}/revisions`);
@@ -460,7 +493,7 @@ function DatastoreEntryForm({ entry }: { entry: DatastoreEntry }) {
       className="text-sm font-mono bg-neutral-800 rounded-lg p-6 shadow-lg"
     >
       <div className="py-2 flex items-center gap-x-2">
-        <span className="font-bold">Data</span>
+        <span className="font-bold text-base">Data</span>
         <EntryTypeSelect defaultValue={type} onChange={onTypeChange} />
         <button
           type="button"
@@ -515,6 +548,139 @@ function DatastoreEntryForm({ entry }: { entry: DatastoreEntry }) {
         ) : (
           <DatastoreEntryData path={[]} value={entryState} type={type} />
         )}
+      </EntryContext.Provider>
+
+      <div className="py-2 flex items-center gap-x-2 mt-8">
+        <span className="font-bold text-base">Users</span>
+        <button
+          type="button"
+          onClick={() => {
+            setUsers(entry.users);
+          }}
+          className="bg-blue-600/10 text-blue-500 hover:bg-blue-600 hover:text-white px-3 py-1.5 rounded-md transition-colors duration-200 flex items-center gap-2 text-sm font-medium border border-blue-500/20"
+        >
+          Reset
+        </button>
+      </div>
+
+      <div className={`pl-4 border-l border-neutral-700 ml-1 mt-1 space-y-1`}>
+        {users.map((user, i) => (
+          <div className="flex items-center gap-x-3 py-1.5 px-1 rounded-md hover:bg-neutral-800/30">
+            <span className="bg-neutral-800/50 border border-neutral-700 focus:border-neutral-500 px-2 py-1 rounded-md focus:outline-none transition-colors w-32">
+              {i}
+            </span>
+            <span className="text-neutral-400">:</span>
+            <input
+              type="number"
+              defaultValue={user}
+              onBlur={(e) => {
+                const u = structuredClone(users);
+                u[i] = e.target.value;
+                setUsers(u);
+              }}
+              className="bg-neutral-800/50 border border-neutral-700 focus:border-neutral-500 px-2 py-1 rounded-md focus:outline-none transition-colors flex-1 min-w-[120px]"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setUsers(users.filter((_v, idx) => idx != i));
+              }}
+              className="p-1.5 rounded-md bg-neutral-800/80 hover:bg-red-500/20 text-neutral-400 hover:text-red-400 transition-all ml-auto"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+                stroke="currentColor"
+                className="size-3.5"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M19.5 12h-15"
+                />
+              </svg>
+            </button>
+          </div>
+        ))}
+        <div>
+          <button
+            type="button"
+            onClick={() => {
+              setUsers([...users, "0"]);
+            }}
+            className="bg-blue-600/10 text-blue-500 hover:bg-blue-600 hover:text-white px-3 py-1.5 rounded-md transition-colors duration-200 flex items-center gap-2 text-sm font-medium border border-blue-500/20"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.5}
+              stroke="currentColor"
+              className="w-4 h-4 relative z-10"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+              />
+            </svg>
+            Add User
+          </button>
+        </div>
+      </div>
+
+      <div className="py-2 flex items-center gap-x-2 mt-8">
+        <span className="font-bold text-base">Attributes</span>
+        <button
+          type="button"
+          onClick={() => setEntryState(toKVJsonValue(entry.value))}
+          className="bg-blue-600/10 text-blue-500 hover:bg-blue-600 hover:text-white px-3 py-1.5 rounded-md transition-colors duration-200 flex items-center gap-2 text-sm font-medium border border-blue-500/20"
+        >
+          Reset
+        </button>
+      </div>
+
+      <EntryContext.Provider
+        value={{
+          entry: attributes,
+          setEntry: (newAttributes) => {
+            setAttributes(newAttributes);
+          },
+        }}
+      >
+        {(attributes as KVJsonObject).map((entryField) => (
+          <DatastoreEntryData
+            key={entryField.key}
+            path={[entryField.key]}
+            value={entryField.value}
+            type={entryField.type}
+          />
+        ))}
+        <div>
+          <button
+            type="button"
+            onClick={() => addAttributeItem()}
+            className="bg-blue-600/10 text-blue-500 hover:bg-blue-600 hover:text-white px-3 py-1.5 rounded-md transition-colors duration-200 flex items-center gap-2 text-sm font-medium border border-blue-500/20"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.5}
+              stroke="currentColor"
+              className="w-4 h-4 relative z-10"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+              />
+            </svg>
+            Add Field
+          </button>
+        </div>
       </EntryContext.Provider>
     </form>
   );
