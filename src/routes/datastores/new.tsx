@@ -118,6 +118,10 @@ function EntryForm() {
           setEntryState(toKVJsonValue(""));
           setType(JsonType.String);
           break;
+        case JsonType.Null:
+          setEntryState(toKVJsonValue(null));
+          setType(JsonType.Null);
+          break;
       }
     }
   }
@@ -138,7 +142,7 @@ function EntryForm() {
   }
 
   async function onSubmit() {
-    const value = toJsonValue(entryState, JsonType.Object);
+    const value = toJsonValue(entryState, type);
     try {
       await invoke("create_datastore_entry", {
         universe_id: params.universe_id,

@@ -94,6 +94,10 @@ export const DatastoreEntryData = React.memo(
               current[index].type = JsonType.Boolean;
               break;
             }
+            case JsonType.Null: {
+              current[index].value = null;
+              current[index].type = JsonType.Null;
+            }
           }
           setEntry(updatedEntry);
         }
@@ -269,6 +273,7 @@ export const DatastoreEntryData = React.memo(
                     type={typeof value === "number" ? "number" : "text"}
                     value={value?.toString()}
                     onChange={(e) => onValueChange(e.target.value)}
+                    disabled={type === JsonType.Null}
                     className="bg-neutral-800/50 border border-neutral-700 focus:border-neutral-500 px-2 py-1 rounded-md focus:outline-none transition-colors flex-1 min-w-[120px]"
                   />
                 )}
@@ -366,6 +371,12 @@ export const EntryTypeSelect = React.memo(
                 className="relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-neutral-700 data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
               >
                 <Select.ItemText>String</Select.ItemText>
+              </Select.Item>
+              <Select.Item
+                value={JsonType.Null.toString()}
+                className="relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-neutral-700 data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+              >
+                <Select.ItemText>Null</Select.ItemText>
               </Select.Item>
             </Select.Viewport>
           </Select.Content>

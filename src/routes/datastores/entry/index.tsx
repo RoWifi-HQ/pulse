@@ -424,6 +424,10 @@ function DatastoreEntryForm({ entry }: { entry: DatastoreEntry }) {
           setEntryState(toKVJsonValue(""));
           setType(JsonType.String);
           break;
+        case JsonType.Null:
+          setEntryState(toKVJsonValue(null));
+          setType(JsonType.Null);
+          break;
       }
     }
   }

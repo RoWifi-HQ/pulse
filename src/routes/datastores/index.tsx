@@ -482,7 +482,7 @@ function DatastoreEntryCardInner({ entry_id }: { entry_id: string }) {
 function DatastoreEntryForm({ entry }: { entry: DatastoreEntry }) {
   const params = useParams();
   const [entryState, setEntryState] = useState(toKVJsonValue(entry.value));
-  const [type, setType] = useState(getJSONType(entry));
+  const [type, setType] = useState(getJSONType(entry.value));
 
   function onTypeChange(new_type: JsonType) {
     if (new_type !== type) {
@@ -507,6 +507,10 @@ function DatastoreEntryForm({ entry }: { entry: DatastoreEntry }) {
           setEntryState(toKVJsonValue(""));
           setType(JsonType.String);
           break;
+        case JsonType.Null:
+          setEntryState(toKVJsonValue(null));
+          setType(JsonType.Null);
+          break;
       }
     }
   }
@@ -527,7 +531,7 @@ function DatastoreEntryForm({ entry }: { entry: DatastoreEntry }) {
   }
 
   async function onSubmit() {
-    const value = toJsonValue(entryState, JsonType.Object);
+    const value = toJsonValue(entryState, type);
     try {
       const new_entry = await invoke("update_datastore_entry", {
         universe_id: params.universe_id,
