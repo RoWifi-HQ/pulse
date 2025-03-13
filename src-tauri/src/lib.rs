@@ -14,6 +14,7 @@ use tauri::{AppHandle, Manager, State};
 use tauri_plugin_log::{Target, TargetKind};
 use tauri_plugin_store::StoreExt;
 use tokio::sync::Mutex;
+use keyring::Entry;
 
 #[derive(Serialize)]
 pub struct InitInfo {
@@ -23,18 +24,17 @@ pub struct InitInfo {
 pub struct Universes(Mutex<Vec<UniverseId>>);
 
 #[tauri::command(rename_all = "snake_case")]
-fn get_init_info(app: AppHandle) -> Result<InitInfo, String> {
-    let store = app.store("store.json").map_err(|err| err.to_string())?;
-    let token = store.has("roblox_token");
+fn get_init_info() -> Result<InitInfo, String> {
+    let entry = Entry::new("pulse", "roblox_token").map_err(|err| err.to_string())?;
+    let token = entry.get_password().is_ok();
 
     Ok(InitInfo { token })
 }
 
 #[tauri::command(rename_all = "snake_case")]
 fn set_token(app: AppHandle, token: String) -> Result<(), String> {
-    let store = app.store("store.json").map_err(|err| err.to_string())?;
-    store.set("roblox_token", token.clone());
-    store.save().map_err(|err| err.to_string())?;
+    let entry = Entry::new("pulse", "roblox_token").map_err(|err| err.to_string())?;
+    entry.set_password(&token).map_err(|err| err.to_string())?;
 
     app.manage(RobloxClient::new(&token, None));
 
@@ -298,13 +298,13 @@ pub fn run() {
             create_datastore_entry
         ])
         .setup(|app| {
-            let store = app.store("store.json")?;
-
-            if let Some(token) = store.get("roblox_token") {
-                let token = token.as_str().unwrap_or_default();
-                app.manage(RobloxClient::new(token, None));
+            if let Ok(entry) = Entry::new("pulse", "roblox_token") {
+                if let Ok(token) = entry.get_password() {
+                    app.manage(RobloxClient::new(&token, None));
+                }
             }
 
+            let store = app.store("store.json")?;
             let universes = store.get("universes");
             let universes = universes
                 .map(|value| serde_json::from_value::<Vec<UniverseId>>(value))

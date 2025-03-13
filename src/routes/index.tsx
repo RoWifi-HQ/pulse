@@ -27,7 +27,7 @@ async function list_datastores(universe_id: number) {
 }
 
 export default function Page() {
-  const { data: init_info } = useSWR("init", () => getInitInfo());
+  const { data: init_info } = useSWR("init", () => getInitInfo(), { revalidateOnFocus: false });
 
   return (
     <div className="min-h-screen bg-neutral-900 text-neutral-100 py-12 px-6">
@@ -42,7 +42,7 @@ export default function Page() {
         </header>
 
         <TokenSection token={init_info?.token} />
-        <UniverseSection />
+        {init_info?.token && <UniverseSection />}
       </div>
     </div>
   );
